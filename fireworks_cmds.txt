@@ -1,0 +1,30 @@
+*** lpad add  				## Adds workflow (from yaml file)
+*** lpad get_fws -i 1 -d all  		## Query the databsae (info about fireworks)
+	-s  status
+
+*** lpad get_workflows
+
+*** lpad -o yaml			## get w flow in yaml format
+
+*** lpad add -c ...yaml 		## Checks if WF is correct
+
+** lpad rerun
+
+** lpad -o yaml get_wflows -t -m 10 --rsort created_on      ## Prints a table of the current status
+
+** lpad check_wflow -i <firework ID> [-g <controlflow | dataflow | combined>] [-f <filename>]
+** dot -Tpdf -o workflow.pdf workflow.dot		    ## Workflow to be visualized with pdf
+
+### Launching fire works #######################################################################
+
+*** rlaunch singleshot   		## fetches availble fireworks from the server and runs it
+*** rlaunch rapidfire			## launch rockets, will keep repeating until we run out of FireWorks to run
+	-nlaunches infinite --sleep $number	## looks for new FWs every $number seconds
+	-silencer				## suppresses log messages
+** rlaunch multi
+
+
+***  TemplateWriterTask, ScriptTask, FileTransferTask in Yaml files
+With python you can write firetasks
+
+
