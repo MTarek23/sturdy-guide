@@ -1,30 +1,45 @@
-*** lpad add  				## Adds workflow (from yaml file)
-*** lpad get_fws -i 1 -d all  		## Query the databsae (info about fireworks)
+############################ Adding/Validating/Visualising Workflows ##############################
+
+*** lpad check_wflow -i <firework ID>				## Check added workflow for errors
+         add -c <workflow name>					## add and check simultaneously
+
+*** lpad add <workflow name>					## Adds workflow (yaml/json file)
+
+*** lpad delete_wflows -i <workflow ID>  			## deletes workflow
+
+*** lpad get_fws [-i <firework ID>] [-d <more|all>]  		## Query the database (info about fireworks)
 	-s  status
 
-*** lpad get_workflows
+*** lpad get_workflows						## Query workflows
 
-*** lpad -o yaml			## get w flow in yaml format
+*** lpad -o yaml						## produce output in yaml format instead of json
 
-*** lpad add -c ...yaml 		## Checks if WF is correct
+*** lpad -o yaml get_wflows -t -m 10 --rsort created_on      	## Prints a table of the current status
 
-** lpad rerun
+*** lpad check_wflow -i <workflow ID> [-g <controlflow | dataflow | combined>] [-f <filename>]
+    dot -Tpdf -o <pdf name>.pdf <workflow name>.dot		## Workflow to be visualized with pdf
 
-** lpad -o yaml get_wflows -t -m 10 --rsort created_on      ## Prints a table of the current status
 
-** lpad check_wflow -i <firework ID> [-g <controlflow | dataflow | combined>] [-f <filename>]
-** dot -Tpdf -o workflow.pdf workflow.dot		    ## Workflow to be visualized with pdf
+##################################### Troubleshooting #############################################
 
-### Launching fire works #######################################################################
+*** lpad rerun_fws -i <firework ID>				## reruns problematic fws if problem is external (doesn't modify children's specs)
 
-*** rlaunch singleshot   		## fetches availble fireworks from the server and runs it
-*** rlaunch rapidfire			## launch rockets, will keep repeating until we run out of FireWorks to run
-	-nlaunches infinite --sleep $number	## looks for new FWs every $number seconds
-	-silencer				## suppresses log messages
-** rlaunch multi
+*** lpad update_fws -i <firework ID> -u '{<update>}'		## if the error is in the spec
 
+################################## Launching fireworks ############################################
+
+*** rlaunch singleshot   					## fetches availble fireworks from the server and runs it one at a time
+
+*** rlaunch rapidfire						## launch rockets, will keep repeating until we run out of FireWorks to run
+	-nlaunches infinite --sleep $number			## looks for new FWs every $number seconds
+	-silencer						## suppresses log messages/verbose
+
+*** rlaunch multi						## launch fireworks in parallel
+
+################################# Firetasks #######################################################
 
 ***  TemplateWriterTask, ScriptTask, FileTransferTask in Yaml files
 With python you can write firetasks
+
 
 
