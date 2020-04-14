@@ -1,1 +1,1 @@
-This repo is to record progress of knowledge on Fireworks workflow management
+This repo is to record progress of Fireworks workflow management
