@@ -10,7 +10,7 @@
 *** lpad get_fws [-i <firework ID>] [-d <more|all>]  		## Query the database (info about fireworks)
 	-s  status
 
-*** lpad get_workflows						## Query workflows
+*** lpad get_wflows						## Query workflows
 
 *** lpad -o yaml						## produce output in yaml format instead of json
 
