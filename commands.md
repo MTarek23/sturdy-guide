@@ -10,7 +10,7 @@ lpad add -c <workflow name>
 ```
 Adds workflow (yaml/json file)
 ```bash
-*** lpad add <workflow name>					
+lpad add <workflow name>					
 ```
 Delete workflow
 ```bash
