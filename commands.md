@@ -54,16 +54,23 @@ lpad update_fws -i <firework ID> -u '{<update>}'
 ```
 ## Launching fireworks
 
-*** rlaunch singleshot   					## fetches availble fireworks from the server and runs it one at a time
+Fetch availble fireworks from the server and runs it one at a time
+```bash
+rlaunch singleshot
+```
 
-*** rlaunch rapidfire						## launch rockets, will keep repeating until we run out of FireWorks to run
-	-nlaunches infinite --sleep $number			## looks for new FWs every $number seconds
-	-silencer						## suppresses log messages/verbose
+Launch rockets, will keep repeating until we run out of FireWorks to run
+```bash
+rlaunch rapidfire
+	-nlaunches infinite --sleep $number	## looks for new FWs every $number seconds
+	-silencer				## suppresses log messages/verbose
+```
+Launch fireworks in parallel
+```bash
+rlaunch multi
+```
 
-*** rlaunch multi						## launch fireworks in parallel
+## Firetasks
 
+TemplateWriterTask, ScriptTask, FileTransferTask in Yaml files
 
-################################# Firetasks #######################################################
-
-***  TemplateWriterTask, ScriptTask, FileTransferTask in Yaml files
-With python you can write firetasks
