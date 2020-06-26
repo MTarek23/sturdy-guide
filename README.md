@@ -1,1 +1,3 @@
-This repo is to record progress of Fireworks workflow management
+## Fireworks guide
+
+Fireworks installation, cheat sheet and basic examples of the project workflow.
