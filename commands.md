@@ -74,6 +74,15 @@ rlaunch multi
 
 TemplateWriterTask, ScriptTask, FileTransferTask in Yaml files
 
+* `Add and Modify` task  : adds the numbers in the input_array
+```bash
+    - _fw_name: Add and Modify Task
+    input_array:
+    - 1
+    - 1
+ ```
+
+## Other spec arguments
 
 In the Spec section of yaml files. The instruction to update the spec of all children jobs with some runtime information of the current job is by setting
 ```bash
