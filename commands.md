@@ -74,3 +74,8 @@ rlaunch multi
 
 TemplateWriterTask, ScriptTask, FileTransferTask in Yaml files
 
+
+In the Spec section of yaml files. The instruction to update the spec of all children jobs with some runtime information of the current job is by setting
+```bash
+_pass_job_info: true
+```
