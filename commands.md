@@ -104,7 +104,8 @@ Stores data or modify the Workflow depending on the output (e.g., pass data to t
 
 ## Firworker & FireServer
 
-FireWorks can stores Fireworks in the FireServer, but execute them on one or several outside ‘worker’ machine (FireWorkers). FireServer (“LaunchPad”) manages workflows, the launchpad contains the credentials of your FireServer
+FireWorks can stores Fireworks in the FireServer, but execute them on one or several outside ‘worker’ machine (FireWorkers). A FireWorker is basically the computing resource.
+FireServer (“LaunchPad”) manages workflows, the launchpad contains the credentials of your FireServer
 
 ## Tips
 
