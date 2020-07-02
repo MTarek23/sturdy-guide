@@ -37,7 +37,7 @@ lpad -o yaml get_wflows -t -m 10 --rsort created_on
 
 Visualize Workflow to in a pdf
 ```bash
-lpad check_wflow -i <workflow ID> [-g <controlflow | dataflow | combined>] [-f <filename>]
+lpad check_wflow -i <workflow ID> [-g <controlflow | dataflow | combined>] [-f <workflow name>]
      dot -Tpdf -o <pdf name>.pdf <workflow name>.dot
 ```
 
