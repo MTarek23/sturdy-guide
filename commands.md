@@ -25,7 +25,6 @@ Query workflows
 ```bash
 lpad get_wflows
 ```
-
 Produce output in yaml format instead of json
 ```bash
 lpad -o yaml
@@ -34,7 +33,6 @@ Print a table of the current status
 ```bash
 lpad -o yaml get_wflows -t -m 10 --rsort created_on 
 ```
-
 Visualize Workflow to in a pdf
 ```bash
 lpad check_wflow -i <workflow ID> [-g <controlflow | dataflow | combined>] [-f <workflow name>]
@@ -47,7 +45,6 @@ Rerun problematic fws if problem is external (doesn't modify children's specs)
 ```bash
 lpad rerun_fws -i <firework ID>
 ```
-
 if the error is in the spec
 ```bash
 lpad update_fws -i <firework ID> -u '{<update>}'
@@ -82,8 +79,11 @@ TemplateWriterTask, ScriptTask, FileTransferTask in Yaml files
   - 1
 ```
 
-## Other spec arguments
+## Firework specs
 
+### Definition and good practice
+The spec of a Firework completely bootstraps a job and determines what will run. It is advisable to *put any flexible input data as root keys in your spec* and 
+*put in the spec any metadata about your job that you want to query on later*.
 In the Spec section of yaml files. The instruction to update the spec of all children jobs with some runtime information of the current job is by setting
 ```bash
 _pass_job_info: true
