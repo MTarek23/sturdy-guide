@@ -76,11 +76,11 @@ TemplateWriterTask, ScriptTask, FileTransferTask in Yaml files
 
 * `Add and Modify` task  : adds the numbers in the input_array
 ```bash
-    - _fw_name: Add and Modify Task
-    input_array:
-    - 1
-    - 1
- ```
+- _fw_name: Add and Modify Task
+  input_array:
+  - 1
+  - 1
+```
 
 ## Other spec arguments
 
