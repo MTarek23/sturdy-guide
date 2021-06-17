@@ -23,6 +23,10 @@ Query the database (info about fireworks)
 lpad get_fws [-i <firework ID>] [-d <more|all>]
      -s  status
 ```
+Identify the job's launch dir
+```bash
+lpad get_launchdir [-i <firework ID>]
+```
 Query workflows
 ```bash
 lpad get_wflows
