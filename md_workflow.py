@@ -126,7 +126,7 @@ create_dataset = PyTask(func='dtool_dataset.create_dataset', args=['equilib-ds']
 
 transfer_from_src = FileTransferTask({'files': glob.glob(os.path.join('equilib','*')),
                                       'dest': 'equilib-ds',
-                                      'mode': 'copy')
+                                      'mode': 'copy'})
 
 firework_create_ds = Firework([create_dataset, transfer_from_src],
                          name = 'Create Dataset',
