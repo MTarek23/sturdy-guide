@@ -133,9 +133,9 @@ fw_list.append(fetch_firework)
 
 create_dataset = PyTask(func='dtool_dataset.create_dataset', args=['equilib-ds'])
 
-firework_create_ds = Firework([ds_remote],
+firework_create_ds = Firework([create_dataset],
                          name = 'Create Dataset',
-                         spec = {'_category' : 'cmsquad35',
+                         spec = {'_category' : 'uc2.scc.kit.edu',
                                  '_dupefinder': DupeFinderExact()},
                          parents = [fetch_firework])
 
