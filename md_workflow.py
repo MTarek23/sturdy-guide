@@ -80,12 +80,12 @@ fw_list = []
 # Fetch the files to be used in multiple simulatios with different parameters
 fetch_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
                             cd md-input/ ; git checkout HEAD pentane/equilib-rigid-walls; cd ../;\
-                            mv {os.getcwd()}/md-input/pentane/equilib-rigid-walls equilib ;\
-                            rm -rf {os.getcwd()}/md-input/ ; mkdir {os.getcwd()}/equilib/out")
+                            mv md-input/pentane/equilib-rigid-walls equilib ;\
+                            rm -rf md-input/ ; mkdir equilib/out")
 
 fetch_firework = Firework([fetch_input],
                                 name = 'Fetch Input',
-                                spec = {'_category': 'uc2.scc.kit.edu', #f'{host}',
+                                spec = {'_category': f'{host}',
                                         '_dupefinder': DupeFinderExact(),
                                         '_launch_dir': f'{os.getcwd()}',#f'{workspace_equilib}',
                                         'metadata': {'project': project_id,
@@ -102,6 +102,7 @@ transfer_from_src = ScriptTask.from_str('cp -r equilib/* equilib-ds/data/')
 firework_create_ds = Firework([create_dataset, transfer_from_src],
                          name = 'Create Dataset',
                          spec = {'_category' : 'uc2.scc.kit.edu',
+                                 '_launch_dir': f'{os.getcwd()}',
                                  '_dupefinder': DupeFinderExact()},
                          parents = [fetch_firework])
 
