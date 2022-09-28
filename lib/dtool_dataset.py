@@ -5,7 +5,7 @@ from dtool_create.dataset import _get_readme_template
 
 def create_dataset(dataset_name):
     """
-    Creates a parent dataset
+    Creates a parent dataset with the nput files from the source (remote git repo)
     """
 
     # global yaml setting
@@ -15,9 +15,9 @@ def create_dataset(dataset_name):
 
     ds = dtoolcore.DataSetCreator(dataset_name, os.getcwd(), creator_username='mtelewa')
 
+    # load readme template and update metadata
     read_from = os.path.join(os.path.expanduser('~'), '.dtool', 'custom_dtool_readme.yml')
     readme_template = _get_readme_template(read_from)
-    # load readme template and update
     metadata = yaml.load(readme_template)
 
     # metadata = update_readme(**kwargs)

@@ -8,17 +8,7 @@ import fireworks.queue.queue_adapter as queue_adapter
 from fireworks.user_objects.queue_adapters.common_adapter import CommonAdapter
 from fireworks.fw_config import QUEUEADAPTER_LOC
 from fireworks.user_objects.dupefinders.dupefinder_exact import DupeFinderExact
-# import fw_funcs
-# Extract info from the keychain
-# import keyring
-#Check which python interpreter
-# print(sys.executable)
 import os, glob, sys, datetime, subprocess, itertools
-# For remote transfer
-# import paramiko
-# For launching on the queue
-# from fabric.api import run, env  >> deprecated in fabric 2+
-# import fabric
 import numpy as np
 import dtool_dataset
 
@@ -109,7 +99,7 @@ fetch_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-inpu
                             rm -rf {os.getcwd()}/md-input/ ; mkdir {os.getcwd()}/equilib/out")
 
 fetch_firework = Firework([fetch_input],
-                                name = 'Fetch',
+                                name = 'Fetch Input',
                                 spec = {'_category': 'uc2.scc.kit.edu', #f'{host}',
                                         '_dupefinder': DupeFinderExact(),
                                         '_launch_dir': f'{os.getcwd()}',#f'{workspace_equilib}',
@@ -119,7 +109,7 @@ fetch_firework = Firework([fetch_input],
 fw_list.append(fetch_firework)
 
 
-# Create the remote datasets
+
 # ds_remote = PyTask(func='fw_funcs.create_remote_ds', args=[host, user, key_file,
 #                                                            workspace,'equilib-ds'])
 #
@@ -131,9 +121,14 @@ fw_list.append(fetch_firework)
 #
 # fw_list.append(firework_create_ds)
 
+# Create the datasets and copy the files from the fetched src
 create_dataset = PyTask(func='dtool_dataset.create_dataset', args=['equilib-ds'])
 
-firework_create_ds = Firework([create_dataset],
+transfer_from_src = FileTransferTask({'files': glob.glob(os.path.join('equilib','*')),
+                                      'dest': 'equilib-ds',
+                                      'mode': 'copy')
+
+firework_create_ds = Firework([create_dataset, transfer_from_src],
                          name = 'Create Dataset',
                          spec = {'_category' : 'uc2.scc.kit.edu',
                                  '_dupefinder': DupeFinderExact()},
@@ -160,15 +155,6 @@ fw_list.append(firework_create_ds)
     # ds_local = PyTask(func='fw_funcs.create_local_ds', args=[f'{sys.argv[1]}',
     #                                                           f'{sys.argv[1]}-{val}'])
 
-    #
-    # # Local Machine directories
-    # local_equilib = os.path.join(prefix,f'{sys.argv[1]}-{val}')
-    # local_blocks = os.path.join(local_equilib, 'blocks')
-    # local_moltemp = os.path.join(local_equilib,'moltemp')
-    #
-    # # Remote workspace directories
-    # workspace_equilib = os.path.join(workspace,f'{sys.argv[1]}-{val}','data')
-    # workspace_blocks = os.path.join(workspace_equilib, 'blocks')
 
     # Initialization FW----------------
 
