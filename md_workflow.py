@@ -41,10 +41,6 @@ prefix = os.getcwd()
 # FireWorks config directory
 local_fws = os.path.expanduser('~/.fireworks')
 
-# Test connection with Fabric
-# connection = fabric.connection.Connection(host, user=user, connect_kwargs=
-#                                 {"key_filename": key_file})
-
 # set up the LaunchPad and reset it
 lp = LaunchPad.auto_load()
 
@@ -80,17 +76,6 @@ parameter_dict_sets = [ dict(zip(parametric_dimension_labels, s)) for s in param
 
 fw_list = []
 
-# ft = ScriptTask.from_str('echo "Start the Workflow"')
-# root_fw = Firework([ft],
-#     name = 'Load the files',
-#     spec = {'_category': 'cmsquad35',
-#             'metadata': {'project': project_id,
-#                         'datetime': datetime.datetime.now()}
-#             })
-#
-# fw_list.append(root_fw)
-
-
 
 # Fetch the files to be used in multiple simulatios with different parameters
 fetch_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
@@ -109,6 +94,22 @@ fetch_firework = Firework([fetch_input],
 fw_list.append(fetch_firework)
 
 
+# Create the datasets and copy the files from the fetched src
+create_dataset = PyTask(func='dtool_dataset.create_dataset', args=['equilib-ds'])
+
+transfer_from_src = FileTransferTask({'files': 'equilib',
+                                      'dest': 'equilib-ds',
+                                      'mode': 'copytree'})
+
+firework_create_ds = Firework([create_dataset, transfer_from_src],
+                         name = 'Create Dataset',
+                         spec = {'_category' : 'uc2.scc.kit.edu',
+                                 '_dupefinder': DupeFinderExact()},
+                         parents = [fetch_firework])
+
+fw_list.append(firework_create_ds)
+
+
 
 # ds_remote = PyTask(func='fw_funcs.create_remote_ds', args=[host, user, key_file,
 #                                                            workspace,'equilib-ds'])
@@ -121,20 +122,7 @@ fw_list.append(fetch_firework)
 #
 # fw_list.append(firework_create_ds)
 
-# Create the datasets and copy the files from the fetched src
-create_dataset = PyTask(func='dtool_dataset.create_dataset', args=['equilib-ds'])
 
-transfer_from_src = FileTransferTask({'files': glob.glob(os.path.join('equilib','*')),
-                                      'dest': 'equilib-ds',
-                                      'mode': 'copy'})
-
-firework_create_ds = Firework([create_dataset, transfer_from_src],
-                         name = 'Create Dataset',
-                         spec = {'_category' : 'uc2.scc.kit.edu',
-                                 '_dupefinder': DupeFinderExact()},
-                         parents = [fetch_firework])
-
-fw_list.append(firework_create_ds)
 
 
 # Select the independent variable
