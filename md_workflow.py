@@ -10,7 +10,7 @@ from fireworks.fw_config import QUEUEADAPTER_LOC
 from fireworks.user_objects.dupefinders.dupefinder_exact import DupeFinderExact
 import fw_funcs
 # Extract info from the keychain
-import keyring
+# import keyring
 #Check which python interpreter
 # print(sys.executable)
 import os, glob, sys, datetime, subprocess, itertools
@@ -25,19 +25,20 @@ import numpy as np
 
 # SSH key file
 
-remote = input('Remote server: ')
+# remote = input('Remote server: ')
+remote = 'uc2'
 
 if remote == 'nemo':
     key_file = os.path.expanduser('~/.ssh/id_rsa')
     host = 'login1.nemo.uni-freiburg.de'
     user = 'ka_lr1762'
-    workspace = '/work/ws/nemo/ka_lr1762-my_workspace-0/'
+    workspace = f'/work/ws/nemo/{user}-my_workspace-0/'
 
 elif remote == 'uc2':
     key_file = os.path.expanduser('~/.ssh/id_rsa_uc2')
     host = 'uc2.scc.kit.edu'
     user = 'lr1762'
-    workspace = '/pfs/work7/workspace/scratch/lr1762-flow_simulations'
+    workspace = f'/pfs/work7/workspace/scratch/{user}-flow_sims'
 
 else:
     print('Remote server unknown!')
@@ -64,13 +65,12 @@ qadapter = CommonAdapter.from_file(QUEUEADAPTER_LOC)
 
 project_id = 'EOS'
 
-
 # Initialize ----------------------------------------
 
 parametric_dimension_labels = ['nUnitsX', 'nUnitsY', 'density']
 
 parametric_dimensions = [ {
-    'press':               [285, 546],         #atm
+    'press':               [285],         #atm
     'temp':                [326],                             #  , 423, 520 temp
     'nUnitsX':             [72],
     'nUnitsY':             [10],
@@ -90,57 +90,85 @@ parameter_dict_sets = [ dict(zip(parametric_dimension_labels, s)) for s in param
 
 fw_list = []
 
+# ft = ScriptTask.from_str('echo "Start the Workflow"')
+# root_fw = Firework([ft],
+#     name = 'Load the files',
+#     spec = {'_category': 'cmsquad35',
+#             'metadata': {'project': project_id,
+#                         'datetime': datetime.datetime.now()}
+#             })
+#
+# fw_list.append(root_fw)
 
-# Create a dummy root fw
 
-# for i in range(len(parameter_sets)):
-ft = ScriptTask.from_str('echo "Start the Workflow"')
-root_fw = Firework([ft],
-    name = 'Load the files',
-    spec = {'_category': 'cmsquad35',
-            'metadata': {'project': project_id,
-                        'datetime': datetime.datetime.now()}
-            })
 
-fw_list.append(root_fw)
+# Fetch the files to be used in multiple simulatios with different parameters
+fetch_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
+                            cd md-input/ ; git checkout HEAD pentane/equilib-rigid-walls; cd ../;\
+                            mv {os.getcwd()}/md-input/pentane/equilib-rigid-walls equilib ;\
+                            rm -rf {os.getcwd()}/md-input/ ; mkdir {os.getcwd()}/equilib/out")
+
+fetch_firework = Firework([fetch_input],
+                                name = 'Fetch',
+                                spec = {'_category': 'uc2.scc.kit.edu', #f'{host}',
+                                        '_dupefinder': DupeFinderExact(),
+                                        '_launch_dir': f'{os.getcwd()}',#f'{workspace_equilib}',
+                                        'metadata': {'project': project_id,
+                                                    'datetime': datetime.datetime.now()}})
+
+fw_list.append(fetch_firework)
+
+
+# Create the remote datasets
+# ds_remote = PyTask(func='fw_funcs.create_remote_ds', args=[host, user, key_file,
+#                                                            workspace,'equilib-ds'])
+#
+# firework_create_ds = Firework([ds_remote],
+#                          name = 'Create Dataset',
+#                          spec = {'_category' : 'cmsquad35',
+#                                  '_dupefinder': DupeFinderExact()},
+#                          parents = [fetch_firework])
+#
+# fw_list.append(firework_create_ds)
+
+create_dataset = PyTask(func='dtool_dataset.create_dataset', args=['equilib-ds'])
+
+firework_create_ds = Firework([ds_remote],
+                         name = 'Create Dataset',
+                         spec = {'_category' : 'cmsquad35',
+                                 '_dupefinder': DupeFinderExact()},
+                         parents = [fetch_firework])
+
+fw_list.append(firework_create_ds)
+
 
 # Select the independent variable
-for k, v in parametric_dimensions[0].items():
-    if len(v) > 1: indep_var = v
+# for k, v in parametric_dimensions[0].items():
+#     if len(v) > 1: indep_var = v
 
 
-for idx, val in enumerate(indep_var):
+# for idx, val in enumerate(indep_var):
 
     # Create the local datasets
-    subprocess.call([f'if [ ! -d "{sys.argv[1]}-{val}" ]; \
-                        then echo Creating directory ;\
-                        mkdir {sys.argv[1]}-{val};\
-                        cp -r {sys.argv[1]}/* {sys.argv[1]}-{val};\
-                        else cp -r {sys.argv[1]}/* {sys.argv[1]}-{val}; \
-                        fi'], shell=True)
+    # subprocess.call([f'if [ ! -d "{sys.argv[1]}-{val}" ]; \
+    #                     then echo Creating directory ;\
+    #                     mkdir {sys.argv[1]}-{val};\
+    #                     cp -r {sys.argv[1]}/* {sys.argv[1]}-{val};\
+    #                     else cp -r {sys.argv[1]}/* {sys.argv[1]}-{val}; \
+    #                     fi'], shell=True)
 
     # ds_local = PyTask(func='fw_funcs.create_local_ds', args=[f'{sys.argv[1]}',
     #                                                           f'{sys.argv[1]}-{val}'])
-    # Create the remote datasets
-    ds_remote = PyTask(func='fw_funcs.create_remote_ds', args=[host, user, key_file,
-                                                               workspace,f'{sys.argv[1]}-{val}'])
 
-    firework_create_ds = Firework([ds_remote],
-                             name = 'Create Dataset',
-                             spec = {'_category' : 'cmsquad35',
-                                     '_dupefinder': DupeFinderExact()},
-                             parents = [root_fw])
-
-    fw_list.append(firework_create_ds)
-
-    # Local Machine directories
-    local_equilib = os.path.join(prefix,f'{sys.argv[1]}-{val}')
-    local_blocks = os.path.join(local_equilib, 'blocks')
-    local_moltemp = os.path.join(local_equilib,'moltemp')
-
-    # Remote workspace directories
-    workspace_equilib = os.path.join(workspace,f'{sys.argv[1]}-{val}','data')
-    workspace_blocks = os.path.join(workspace_equilib, 'blocks')
+    #
+    # # Local Machine directories
+    # local_equilib = os.path.join(prefix,f'{sys.argv[1]}-{val}')
+    # local_blocks = os.path.join(local_equilib, 'blocks')
+    # local_moltemp = os.path.join(local_equilib,'moltemp')
+    #
+    # # Remote workspace directories
+    # workspace_equilib = os.path.join(workspace,f'{sys.argv[1]}-{val}','data')
+    # workspace_blocks = os.path.join(workspace_equilib, 'blocks')
 
     # Initialization FW----------------
 
@@ -159,40 +187,40 @@ for idx, val in enumerate(indep_var):
 
 
     # Transfer to the cluster ----------------------------------
-    remote_transfer = FileTransferTask({'files': sorted(glob.glob(os.path.join(local_blocks,'*'))),
-                                        'dest': workspace_blocks,
-                                        'mode': 'rtransfer',
-                                        'server': host,
-                                        'user': user})
-
-    remote_transfer2 = FileTransferTask({'files': [os.path.join(local_equilib, f)
-                                                for f in os.listdir(local_equilib)
-                                                if os.path.isfile(os.path.join(local_equilib, f))],
-                                        'dest': workspace_equilib,
-                                        'mode': 'rtransfer', 'server': host,
-                                        'user': user})
-
-    firework_transfer = Firework([remote_transfer, remote_transfer2],
-                                 name = 'Transfer',
-                                 spec = {'_category': 'cmsquad35',
-                                         '_dupefinder': DupeFinderExact()},
-                                 parents = [firework_create_ds])
-
-    fw_list.append(firework_transfer)
-
-    # Equilibrate ----------------------------------------------
-
-    equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings \
-            lmp_mpi -in $(pwd)/equilib.LAMMPS -v press '{parametric_dimensions[0]['press'][idx]}'")
-
-    firework_equilibrate = Firework(equilibrate,
-                                    name = 'Equilibrate',
-                                    spec = {'_category': f'{host}',
-                                            '_dupefinder': DupeFinderExact(),
-                                            '_launch_dir': f'{workspace_equilib}'},
-                                    parents = [firework_transfer])
-
-    fw_list.append(firework_equilibrate)
+    # remote_transfer = FileTransferTask({'files': sorted(glob.glob(os.path.join(local_blocks,'*'))),
+    #                                     'dest': workspace_blocks,
+    #                                     'mode': 'rtransfer',
+    #                                     'server': host,
+    #                                     'user': user})
+    #
+    # remote_transfer2 = FileTransferTask({'files': [os.path.join(local_equilib, f)
+    #                                             for f in os.listdir(local_equilib)
+    #                                             if os.path.isfile(os.path.join(local_equilib, f))],
+    #                                     'dest': workspace_equilib,
+    #                                     'mode': 'rtransfer', 'server': host,
+    #                                     'user': user})
+    #
+    # firework_transfer = Firework([remote_transfer, remote_transfer2],
+    #                              name = 'Transfer',
+    #                              spec = {'_category': 'cmsquad35',
+    #                                      '_dupefinder': DupeFinderExact()},
+    #                              parents = [firework_create_ds])
+    #
+    # fw_list.append(firework_transfer)
+    #
+    # # Equilibrate ----------------------------------------------
+    #
+    # equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings \
+    #         lmp_mpi -in $(pwd)/equilib.LAMMPS -v press '{parametric_dimensions[0]['press'][idx]}'")
+    #
+    # firework_equilibrate = Firework(equilibrate,
+    #                                 name = 'Equilibrate',
+    #                                 spec = {'_category': f'{host}',
+    #                                         '_dupefinder': DupeFinderExact(),
+    #                                         '_launch_dir': f'{workspace_equilib}'},
+    #                                 parents = [firework_transfer])
+    #
+    # fw_list.append(firework_equilibrate)
 
 
     # Post_process ----------------------------------------------
@@ -241,6 +269,7 @@ for idx, val in enumerate(indep_var):
 
 
 # Launch the Workflow ---------------------------------------
+
 wf = Workflow(fw_list,
     name = 'test_wf',
     metadata = {

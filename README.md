@@ -1,26 +1,22 @@
 # Description:
 
-Initialization, Equilibration and Non-equilibrium MD simulations on pentane with gold walls.
+Initialization, Equilibration and Non-equilibrium MD simulations on confined fluid within walls or a bulk fluid.
 
 # Required packages:
-* [FireWorks](https://materialsproject.github.io/fireworks/)
-* [Moltemplate](https://moltemplate.org/)
-* [dtool](https://dtool.readthedocs.io/)
+* [FireWorks v1.9.5](https://materialsproject.github.io/fireworks/)
+* [Moltemplate v2.20.0](https://moltemplate.org/)
+* [dtool v3.26.1](https://dtool.readthedocs.io/)
 * [mpi4py](https://mpi4py.readthedocs.io/)
 * [netCDF4](https://unidata.github.io/netcdf4-python/)
 * [LAMMPS](https://www.lammps.org/)
-* matplotlib
-* numpy
-* scipy
+* Matplotlib
+* Numpy
+* Scipy
 
-# Simulation template files:
-* _header.LAMMPS_ contains unit conversions and constants, atomic data and simulation state parameters
-* _system.in.groups_ contains solid and fluid group definitions (based on type) as well as the partitioning of the solid into upper and lower surfaces. It also contains a description of the dynamic pump group (in case of NEMD simulation)
-* _system.in.init_ contains the initialization setup (`pair_style` and `atom_style` for LAMMPS)
-* _system.in.loadUpper_ &rarr; stores the forces on the upper and lower wall before loading, also performs the loading on the upper wall, with the barostat described here (Tribol Lett (2010) 39:49–61)
-* _system.in.settings_ contains the force field parameters for the fluid as well as LJ parameters for the solid
-* _system.in.run_ contains the simulation instructions (equilibration, NEMD, etc.) as well as writing the thermodynamic output and the NetCDF trajectory.
-* _system.in.virial_ samples the virial pressure calculation (along with the Voronoi volumes) during the simulation.
+  Need to update the path and python path variables accordingly, for instance for _moltemplate_ in bashrc add:
+  ```
+  export PATH="$HOME/programs/moltemplate/moltemplate/scripts/:$PATH"
+  ```
 
 # Workflow:
 
@@ -34,7 +30,7 @@ Depending on the choice of code, the initialize_walls script will do either:
       `moltemplate.sh -atomstyle full -overlay-bonds -overlay-angles -overlay-dihedrals -overlay-impropers system.lt` \
       The `-overlay-*` flags are required for cases where multiple bonded interactions involve the same atoms.\
 
-The input files for equilibration are now ready and the `equilib` directory is to be rsynced to the cluster **NEMO**.
+The input files for equilibration are now ready and the `equilib` directory is to be rsynced to the cluster **NEMO** or **UC2**.
 
 2. **Equilibrate**: The equilibration is performed by submitting as a batch job in the `equilib/data`. In this submission script, we run LAMMPS in parallel with the command \
 `mpirun --bind-to core --map-by core -report-bindings lmp_mpi -in $(pwd)/equilib.LAMMPS `

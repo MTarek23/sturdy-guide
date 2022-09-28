@@ -14,10 +14,10 @@ def create_local_ds(dir_in, dir_out):
 
     subprocess.call([f'if [ ! -d "{dir_out}" ]; \
                         then echo Creating directory ;\
-                        dtool create {dir_out}; \
-                        cp -r {dir_in}/* {dir_out}/data;\
-                        else cp -r {dir_in}/* {dir_out}/data; \
-                       fi'], shell=True)
+                        dtool create {dir_out};\
+                        else cp -r {dir_in}/* {dir_out}/data;\
+                        fi'], shell=True)
+                        # cp -r {dir_in}/* {dir_out}/data;\
 
 
 def create_remote_ds(host, user, key_file, workspace, dir):
@@ -26,10 +26,11 @@ def create_remote_ds(host, user, key_file, workspace, dir):
                                     {"key_filename": key_file})
 
     connection.run(f'source $HOME/fireworks/bin/activate; \
-                            if [ ! -d "{workspace}/{dir}" ]; \
-                                then cd {workspace} ; \
+                            if [ ! -d "/pfs/work7/workspace/scratch/{user}-{workspace}/EOS/{dir}" ]; \
+                                then cd /pfs/work7/workspace/scratch/{user}-{workspace} ; \
+                                mkdir EOS; cd EOS; \
                                 dtool create {dir} ; \
-                                cd {dir} ; \
-                                cd data ; \
-                                mkdir out blocks; \
                             fi')
+                            # cd {dir} ; \
+                            # cd data ; \
+                            # mkdir out blocks; \
