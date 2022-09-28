@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import fabric
+# import fabric
 import os
 
 

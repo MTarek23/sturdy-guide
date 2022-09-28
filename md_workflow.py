@@ -8,7 +8,7 @@ import fireworks.queue.queue_adapter as queue_adapter
 from fireworks.user_objects.queue_adapters.common_adapter import CommonAdapter
 from fireworks.fw_config import QUEUEADAPTER_LOC
 from fireworks.user_objects.dupefinders.dupefinder_exact import DupeFinderExact
-import fw_funcs
+# import fw_funcs
 # Extract info from the keychain
 # import keyring
 #Check which python interpreter
@@ -20,7 +20,7 @@ import os, glob, sys, datetime, subprocess, itertools
 # from fabric.api import run, env  >> deprecated in fabric 2+
 # import fabric
 import numpy as np
-
+import dtool_dataset
 
 
 # SSH key file
@@ -52,8 +52,8 @@ prefix = os.getcwd()
 local_fws = os.path.expanduser('~/.fireworks')
 
 # Test connection with Fabric
-connection = fabric.connection.Connection(host, user=user, connect_kwargs=
-                                {"key_filename": key_file})
+# connection = fabric.connection.Connection(host, user=user, connect_kwargs=
+#                                 {"key_filename": key_file})
 
 # set up the LaunchPad and reset it
 lp = LaunchPad.auto_load()
