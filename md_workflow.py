@@ -97,9 +97,7 @@ fw_list.append(fetch_firework)
 # Create the datasets and copy the files from the fetched src
 create_dataset = PyTask(func='dtool_dataset.create_dataset', args=['equilib-ds'])
 
-transfer_from_src = FileTransferTask({'files': 'equilib',
-                                      'dest': 'equilib-ds',
-                                      'mode': 'copytree'})
+transfer_from_src = ScriptTask.from_str('cp -r equilib/* equilib-ds/data/')
 
 firework_create_ds = Firework([create_dataset, transfer_from_src],
                          name = 'Create Dataset',
