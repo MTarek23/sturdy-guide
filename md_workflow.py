@@ -15,10 +15,10 @@ import fw_funcs
 # print(sys.executable)
 import os, glob, sys, datetime, subprocess, itertools
 # For remote transfer
-import paramiko
+# import paramiko
 # For launching on the queue
 # from fabric.api import run, env  >> deprecated in fabric 2+
-import fabric
+# import fabric
 import numpy as np
 
 
