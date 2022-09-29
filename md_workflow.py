@@ -116,12 +116,25 @@ fw_list.append(firework_create_ds)
 
 # Initialize system with moltemplate ----------------
 
+if parametric_dimensions[0]['fluid'][0] == 'pentane':
+    mFluid = 72.15
+    tolX, tolY, tolZ = 10 , 4 , 3
+elif parametric_dimensions[0]['fluid'][0] == 'propane':
+    mFluid = 44.09
+    tolX, tolY, tolZ = 5 , 3 , 3
+elif parametric_dimensions[0]['fluid'][0] == 'heptane':
+    mFluid = 100.21
+    tolX, tolY, tolZ = 10 , 4 , 3
+elif parametric_dimensions[0]['fluid'][0] == 'lj':
+    mFluid = 39.948
+    tolX, tolY, tolZ = 5 , 5 , 5
+
 if 'bulk' in md_system:
     initialize = PyTask(func='init_bulk.init_moltemp',
                         args=[{parametric_dimensions[0]['density'][0]},
                         {parametric_dimensions[0]['Np'][0]},
                         {parametric_dimensions[0]['fluid'][0]},
-                        moltemp])
+                        mfluid, tolX, tolY, tolZ])
 
 if 'walls' in md_system:
     initialize = PyTask(func='init_walls.init_moltemp',
@@ -131,7 +144,7 @@ if 'walls' in md_system:
                         {parametric_dimensions[0]['height'][0]},
                         {parametric_dimensions[0]['density'][0]},
                         {parametric_dimensions[0]['fluid'][0]},
-                        'moltemp'])
+                        mfluid, tolX, tolY, tolZ])
 
 init_firework = Firework([initialize],
                          name = 'Initialize',
