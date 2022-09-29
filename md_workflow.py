@@ -80,7 +80,6 @@ parameter_dict_sets = [ dict(zip(parametric_dimension_labels, s)) for s in param
 
 fw_list = []
 
-
 # Fetch the files to be used in multiple simulatios with different parameters
 fetch_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
                             cd md-input/ ; git checkout HEAD pentane/equilib-{md_system}; cd ../;\
@@ -113,7 +112,6 @@ firework_create_ds = Firework([create_dataset, transfer_from_src],
 fw_list.append(firework_create_ds)
 
 
-
 # Initialize system with moltemplate ----------------
 
 if parametric_dimensions[0]['fluid'][0] == 'pentane':
@@ -131,19 +129,19 @@ elif parametric_dimensions[0]['fluid'][0] == 'lj':
 
 if 'bulk' in md_system:
     initialize = PyTask(func='init_bulk.init_moltemp',
-                        args=[{parametric_dimensions[0]['density'][0]},
-                        {parametric_dimensions[0]['Np'][0]},
-                        {parametric_dimensions[0]['fluid'][0]},
+                        args=[np.float({parametric_dimensions[0]['density'][0]}),
+                        np.int({parametric_dimensions[0]['Np'][0]}),
+                        np.float({parametric_dimensions[0]['fluid'][0]}),
                         mFluid, tolX, tolY, tolZ])
 
 if 'walls' in md_system:
     initialize = PyTask(func='init_walls.init_moltemp',
-                        args=[{parametric_dimensions[0]['nUnitsX'][0]},
-                        {parametric_dimensions[0]['nUnitsY'][0]},
-                        {parametric_dimensions[0]['nUnitsZ'][0]},
-                        {parametric_dimensions[0]['height'][0]},
-                        {parametric_dimensions[0]['density'][0]},
-                        {parametric_dimensions[0]['fluid'][0]},
+                        args=[np.float({parametric_dimensions[0]['nUnitsX'][0]}),
+                        np.float({parametric_dimensions[0]['nUnitsY'][0]}),
+                        np.float({parametric_dimensions[0]['nUnitsZ'][0]}),
+                        np.float({parametric_dimensions[0]['height'][0]}),
+                        np.float({parametric_dimensions[0]['density'][0]}),
+                        np.float({parametric_dimensions[0]['fluid'][0]}),
                         mFluid, tolX, tolY, tolZ])
 
 init_firework = Firework([initialize],
