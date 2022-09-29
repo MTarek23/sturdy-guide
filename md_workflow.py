@@ -11,7 +11,7 @@ from fireworks.user_objects.dupefinders.dupefinder_exact import DupeFinderExact
 import os, glob, sys, datetime, subprocess, itertools
 import numpy as np
 import dtool_dataset
-
+import init_walls, init_bulk
 
 # SSH key file
 
@@ -51,13 +51,15 @@ qadapter = CommonAdapter.from_file(QUEUEADAPTER_LOC)
 
 project_id = 'EOS'
 
+md_system = sys.argv[1]
+
 # Initialize ----------------------------------------
 
 parametric_dimension_labels = ['nUnitsX', 'nUnitsY', 'density']
 
 parametric_dimensions = [ {
-    'press':               [285],         #atm
-    'temp':                [326],                             #  , 423, 520 temp
+    'press':               [2467],         #atm = 350 MPa
+    'temp':                [326],
     'nUnitsX':             [72],
     'nUnitsY':             [10],
     'density':             [0.7],
@@ -79,8 +81,8 @@ fw_list = []
 
 # Fetch the files to be used in multiple simulatios with different parameters
 fetch_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
-                            cd md-input/ ; git checkout HEAD pentane/equilib-rigid-walls; cd ../;\
-                            mv md-input/pentane/equilib-rigid-walls equilib ;\
+                            cd md-input/ ; git checkout HEAD pentane/equilib-{md_system}; cd ../;\
+                            mv md-input/pentane/equilib-{md_system} equilib ;\
                             rm -rf md-input/ ; mkdir equilib/out")
 
 fetch_firework = Firework([fetch_input],
@@ -95,9 +97,9 @@ fw_list.append(fetch_firework)
 
 
 # Create the datasets and copy the files from the fetched src
-create_dataset = PyTask(func='dtool_dataset.create_dataset', args=['equilib-ds'])
-
-transfer_from_src = ScriptTask.from_str('cp -r equilib/* equilib-ds/data/')
+create_dataset = PyTask(func='dtool_dataset.create_dataset',
+                        args=[f'equilib-{parametric_dimensions[0]['pressure'][0]}'])
+transfer_from_src = ScriptTask.from_str(f'cp -r equilib/* equilib-{parametric_dimensions[0]['pressure'][0]}/data/')
 
 firework_create_ds = Firework([create_dataset, transfer_from_src],
                          name = 'Create Dataset',
@@ -110,17 +112,33 @@ fw_list.append(firework_create_ds)
 
 
 
-# ds_remote = PyTask(func='fw_funcs.create_remote_ds', args=[host, user, key_file,
-#                                                            workspace,'equilib-ds'])
-#
-# firework_create_ds = Firework([ds_remote],
-#                          name = 'Create Dataset',
-#                          spec = {'_category' : 'cmsquad35',
-#                                  '_dupefinder': DupeFinderExact()},
-#                          parents = [fetch_firework])
-#
-# fw_list.append(firework_create_ds)
+# Initialize system with moltemplate ----------------
 
+if 'bulk' in md_system:
+    initialize = PyTask(func='init_bulk.init_moltemp',
+                        args=[{parametric_dimensions[0]['density'][0]},
+                        {parametric_dimensions[0]['Np'][0]},
+                        {parametric_dimensions[0]['fluid'][0]},
+                        moltemp])
+
+if 'walls' in md_system:
+    initialize = PyTask(func='init_walls.init_moltemp',
+                        args=[{parametric_dimensions[0]['nUnitsX'][0]},
+                        {parametric_dimensions[0]['nUnitsY'][0]},
+                        {parametric_dimensions[0]['nUnitsZ'][0]},
+                        {parametric_dimensions[0]['height'][0]},
+                        {parametric_dimensions[0]['rho_fluid'][0]},
+                        {parametric_dimensions[0]['fluid'][0]},
+                        moltemp])
+
+init_firework = Firework([initialize],
+                         name = 'Initialize',
+                         spec = {'_category' : f'{host}',
+                                 '_launch_dir': f'{os.getcwd()}/equilib-{parametric_dimensions[0]['pressure'][0]}/moltemp',
+                                 '_dupefinder': DupeFinderExact()},
+                         parents = [firework_create_ds])
+
+fw_list.append(firework_init)
 
 
 
@@ -139,24 +157,9 @@ fw_list.append(firework_create_ds)
     #                     else cp -r {sys.argv[1]}/* {sys.argv[1]}-{val}; \
     #                     fi'], shell=True)
 
-    # ds_local = PyTask(func='fw_funcs.create_local_ds', args=[f'{sys.argv[1]}',
-    #                                                           f'{sys.argv[1]}-{val}'])
 
 
-    # Initialization FW----------------
 
-    # init = ScriptTask.from_str(f"cd {local_moltemp} ; initialize_bulk.py \
-    #         {parametric_dimensions[0]['density'][0]} {parametric_dimensions[0]['Np'][0]} \
-    #         {parametric_dimensions[0]['fluid'][0]} {parametric_dimensions[0]['code'][0]}")
-    # # init = ScriptTask.from_str(f'cd {local_moltemp} ; ./setup.sh')#, {'stdout_file': 'a.out'})
-    #
-    # firework_init = Firework([init],
-    #                          name = 'Initialize',
-    #                          spec = {'_category' : 'cmsquad35',
-    #                                  '_dupefinder': DupeFinderExact()},
-    #                          parents = [firework_create_ds])
-    #
-    # fw_list.append(firework_init)
 
 
     # Transfer to the cluster ----------------------------------
