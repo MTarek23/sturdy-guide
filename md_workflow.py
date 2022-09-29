@@ -150,7 +150,7 @@ init_firework = Firework([initialize, setup],
                          spec = {'_category' : f'{host}',
                                  '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/moltemp",
                                  '_dupefinder': DupeFinderExact()},
-                         parents = [firework_create_ds])
+                         parents = [create_ds_firework])
 
 fw_list.append(init_firework)
 
@@ -164,7 +164,7 @@ equilibrate_firework = Firework(equilibrate,
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/",
                                         '_dupefinder': DupeFinderExact()},
-                                parents = [firework_transfer])
+                                parents = [init_firework])
 
 fw_list.append(equilibrate_firework)
 
