@@ -157,7 +157,7 @@ fw_list.append(init_firework)
 
 # Equilibrate with LAMMPS ----------------------------------------------
 equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings \
-        lmp_mpi -in $(pwd)/equilib.LAMMPS -v press '{parametric_dimensions[0]['press'][idx]}'")
+        lmp_mpi -in $(pwd)/equilib.LAMMPS -v press '{parametric_dimensions[0]['press'][0]}'")
 
 firework_equilibrate = Firework(equilibrate,
                                 name = 'Equilibrate',
