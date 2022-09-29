@@ -102,14 +102,14 @@ create_dataset = PyTask(func='dtool_dataset.create_dataset',
                         args=[f"equilib-{parametric_dimensions[0]['press'][0]}"])
 transfer_from_src = ScriptTask.from_str(f"cp -r equilib/* equilib-{parametric_dimensions[0]['press'][0]}/data/ ; rm -r equilib")
 
-firework_create_ds = Firework([create_dataset, transfer_from_src],
+create_ds_firework = Firework([create_dataset, transfer_from_src],
                          name = 'Create Dataset',
                          spec = {'_category' : 'uc2.scc.kit.edu',
                                  '_launch_dir': f'{os.getcwd()}',
                                  '_dupefinder': DupeFinderExact()},
                          parents = [fetch_firework])
 
-fw_list.append(firework_create_ds)
+fw_list.append(create_ds_firework)
 
 
 # Initialize system with moltemplate ----------------
@@ -159,14 +159,14 @@ fw_list.append(init_firework)
 equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings \
         lmp_mpi -in $(pwd)/equilib.LAMMPS -v press '{parametric_dimensions[0]['press'][0]}'")
 
-firework_equilibrate = Firework(equilibrate,
+equilibrate_firework = Firework(equilibrate,
                                 name = 'Equilibrate',
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/",
                                         '_dupefinder': DupeFinderExact()},
                                 parents = [firework_transfer])
 
-fw_list.append(firework_equilibrate)
+fw_list.append(equilibrate_firework)
 
 
 # Select the independent variable
