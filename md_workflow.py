@@ -36,10 +36,10 @@ else:
 
 
 # Current Working directory
-prefix = os.getcwd()
+# prefix = os.getcwd()
 
 # FireWorks config directory
-local_fws = os.path.expanduser('~/.fireworks')
+# local_fws = os.path.expanduser('~/.fireworks')
 
 # set up the LaunchPad and reset it
 lp = LaunchPad.auto_load()
@@ -58,7 +58,7 @@ md_system = sys.argv[1]
 parametric_dimension_labels = ['nUnitsX', 'nUnitsY', 'density']
 
 parametric_dimensions = [ {
-    'press':               [2467],         #atm = 350 MPa
+    'press':               [2467],         #atm = 250 MPa
     'temp':                [326],
     'nUnitsX':             [72],
     'nUnitsY':             [10],
@@ -80,7 +80,7 @@ parameter_dict_sets = [ dict(zip(parametric_dimension_labels, s)) for s in param
 
 fw_list = []
 
-# Fetch the files to be used in multiple simulatios with different parameters
+# Fetch the src files (to be used in multiple simulations with different parameters) -----------
 fetch_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
                             cd md-input/ ; git checkout HEAD pentane/equilib-{md_system}; cd ../;\
                             mv md-input/pentane/equilib-{md_system} equilib ;\
@@ -97,10 +97,10 @@ fetch_firework = Firework([fetch_input],
 fw_list.append(fetch_firework)
 
 
-# Create the datasets and copy the files from the fetched src
+# Create the datasets and copy the files from the fetched src --------------
 create_dataset = PyTask(func='dtool_dataset.create_dataset',
                         args=[f"equilib-{parametric_dimensions[0]['press'][0]}"])
-transfer_from_src = ScriptTask.from_str(f"cp -r equilib/* equilib-{parametric_dimensions[0]['press'][0]}/data/")
+transfer_from_src = ScriptTask.from_str(f"cp -r equilib/* equilib-{parametric_dimensions[0]['press'][0]}/data/ ; rm -r equilib")
 
 firework_create_ds = Firework([create_dataset, transfer_from_src],
                          name = 'Create Dataset',
@@ -113,7 +113,6 @@ fw_list.append(firework_create_ds)
 
 
 # Initialize system with moltemplate ----------------
-
 if parametric_dimensions[0]['fluid'][0] == 'pentane':
     mFluid = 72.15
     tolX, tolY, tolZ = 10 , 4 , 3
@@ -144,7 +143,9 @@ if 'walls' in md_system:
                         parametric_dimensions[0]['fluid'][0],
                         mFluid, tolX, tolY, tolZ])
 
-init_firework = Firework([initialize],
+setup = ScriptTask.from_str("./setup.sh")
+
+init_firework = Firework([initialize, setup],
                          name = 'Initialize',
                          spec = {'_category' : f'{host}',
                                  '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/moltemp",
@@ -154,6 +155,19 @@ init_firework = Firework([initialize],
 fw_list.append(init_firework)
 
 
+# Equilibrate with LAMMPS ----------------------------------------------
+equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings \
+        lmp_mpi -in $(pwd)/equilib.LAMMPS -v press '{parametric_dimensions[0]['press'][idx]}'")
+
+firework_equilibrate = Firework(equilibrate,
+                                name = 'Equilibrate',
+                                spec = {'_category': f'{host}',
+                                        '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/",
+                                        '_dupefinder': DupeFinderExact()},
+                                parents = [firework_transfer])
+
+fw_list.append(firework_equilibrate)
+
 
 # Select the independent variable
 # for k, v in parametric_dimensions[0].items():
@@ -161,56 +175,6 @@ fw_list.append(init_firework)
 
 
 # for idx, val in enumerate(indep_var):
-
-    # Create the local datasets
-    # subprocess.call([f'if [ ! -d "{sys.argv[1]}-{val}" ]; \
-    #                     then echo Creating directory ;\
-    #                     mkdir {sys.argv[1]}-{val};\
-    #                     cp -r {sys.argv[1]}/* {sys.argv[1]}-{val};\
-    #                     else cp -r {sys.argv[1]}/* {sys.argv[1]}-{val}; \
-    #                     fi'], shell=True)
-
-
-
-
-
-
-    # Transfer to the cluster ----------------------------------
-    # remote_transfer = FileTransferTask({'files': sorted(glob.glob(os.path.join(local_blocks,'*'))),
-    #                                     'dest': workspace_blocks,
-    #                                     'mode': 'rtransfer',
-    #                                     'server': host,
-    #                                     'user': user})
-    #
-    # remote_transfer2 = FileTransferTask({'files': [os.path.join(local_equilib, f)
-    #                                             for f in os.listdir(local_equilib)
-    #                                             if os.path.isfile(os.path.join(local_equilib, f))],
-    #                                     'dest': workspace_equilib,
-    #                                     'mode': 'rtransfer', 'server': host,
-    #                                     'user': user})
-    #
-    # firework_transfer = Firework([remote_transfer, remote_transfer2],
-    #                              name = 'Transfer',
-    #                              spec = {'_category': 'cmsquad35',
-    #                                      '_dupefinder': DupeFinderExact()},
-    #                              parents = [firework_create_ds])
-    #
-    # fw_list.append(firework_transfer)
-    #
-    # # Equilibrate ----------------------------------------------
-    #
-    # equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings \
-    #         lmp_mpi -in $(pwd)/equilib.LAMMPS -v press '{parametric_dimensions[0]['press'][idx]}'")
-    #
-    # firework_equilibrate = Firework(equilibrate,
-    #                                 name = 'Equilibrate',
-    #                                 spec = {'_category': f'{host}',
-    #                                         '_dupefinder': DupeFinderExact(),
-    #                                         '_launch_dir': f'{workspace_equilib}'},
-    #                                 parents = [firework_transfer])
-    #
-    # fw_list.append(firework_equilibrate)
-
 
     # Post_process ----------------------------------------------
 
@@ -275,39 +239,44 @@ lp.add_wf(wf)
 #Write out the Workflow to a flat file
 wf.to_file('wf.yaml')
 
+
 # rocket_launcher.rapidfire(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
 # for i in indep_var:
-#     # Launch the fireworks on the local machine
-#     # First rocket is simple echo
-#     rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
-#     # Create the empty datasets remotely
-#     rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
-#     # Initialize the structure and related parameters
-#     # rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
-#     # Transfer to the cluster
-#     rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
 
-    # Submit the simulation to the cluster (still not working properly)
-    # A. QueueLauncher-------------------------------------
-    #
-    # queue_launcher.launch_rocket_to_queue(lp, FWorker('$HOME/.fireworks/fworker_cms.yaml'),
-    #         queue_adapter.QueueAdapterBase())
-    #queue_launcher.launch_rocket_to_queue(lp, FWorker('$HOME/.fireworks/fworker_cms.yaml'), qadapter)
-    #
-    # Remote fireworks will be FIZZLED so rerun them
-    # subprocess.call(['source $HOME/fireworks/bin/activate; \
-    #                  lpad rerun_fws -s FIZZLED'], shell=True)
-
-    # B. Remote Commands------------------------------------
-    # connection.run(f"cd {workspace}/{sys.argv[1]}-{i}/data;\
-    #                source $HOME/fireworks/bin/activate ;\
-    #                qlaunch singleshot")
-    # Submit the post-processing
-    #connection.run(f"cd {workspace}/{sys.argv[1]}-{i}/data/out;\
-    #               source $HOME/fireworks/bin/activate ;\
-    #               qlaunch -q $HOME/.fireworks/qadapter_uc2_postproc.yaml singleshot")
-
-# Queries to the data base are simple dictionaries
+# # Launch the fireworks on the local machine
+# # Fetch Input
+# rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
+#
+# # Create the datasets
+# rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
+#
+# # Initialize the structure and related parameters
+# # rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
+# # Transfer to the cluster
+# rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
+#
+# ## Submit the simulation to the cluster (still not working properly)
+# #A. QueueLauncher-------------------------------------
+#
+# queue_launcher.launch_rocket_to_queue(lp, FWorker('$HOME/.fireworks/fworker_cms.yaml'),
+#         queue_adapter.QueueAdapterBase())
+# queue_launcher.launch_rocket_to_queue(lp, FWorker('$HOME/.fireworks/fworker_cms.yaml'), qadapter)
+#
+# #Remote fireworks will be FIZZLED so rerun them
+# subprocess.call(['source $HOME/fireworks/bin/activate; \
+#                  lpad rerun_fws -s FIZZLED'], shell=True)
+#
+# #B. Remote Commands------------------------------------
+# connection.run(f"cd {workspace}/{sys.argv[1]}-{i}/data;\
+#                source $HOME/fireworks/bin/activate ;\
+#                qlaunch singleshot")
+#
+# #Submit the post-processing
+# connection.run(f"cd {workspace}/{sys.argv[1]}-{i}/data/out;\
+#               source $HOME/fireworks/bin/activate ;\
+#               qlaunch -q $HOME/.fireworks/qadapter_uc2_postproc.yaml singleshot")
+#
+# #Queries to the data base are simple dictionaries
 # query = {
 #     'metadata.project': project_id,
 #         }
