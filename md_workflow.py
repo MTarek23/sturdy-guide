@@ -62,7 +62,9 @@ parametric_dimensions = [ {
     'temp':                [326],
     'nUnitsX':             [72],
     'nUnitsY':             [10],
+    'nUnitsZ':             [1],
     'density':             [0.7],
+    'height':              [40],
     'Np'     :             [2880],
     'fluid'  :             ['pentane'],
     'code'   :             ['moltemp']
@@ -98,8 +100,8 @@ fw_list.append(fetch_firework)
 
 # Create the datasets and copy the files from the fetched src
 create_dataset = PyTask(func='dtool_dataset.create_dataset',
-                        args=[f'equilib-{parametric_dimensions[0]['pressure'][0]}'])
-transfer_from_src = ScriptTask.from_str(f'cp -r equilib/* equilib-{parametric_dimensions[0]['pressure'][0]}/data/')
+                        args=[f"equilib-{parametric_dimensions[0]['press'][0]}"])
+transfer_from_src = ScriptTask.from_str(f"cp -r equilib/* equilib-{parametric_dimensions[0]['press'][0]}/data/")
 
 firework_create_ds = Firework([create_dataset, transfer_from_src],
                          name = 'Create Dataset',
@@ -127,18 +129,18 @@ if 'walls' in md_system:
                         {parametric_dimensions[0]['nUnitsY'][0]},
                         {parametric_dimensions[0]['nUnitsZ'][0]},
                         {parametric_dimensions[0]['height'][0]},
-                        {parametric_dimensions[0]['rho_fluid'][0]},
+                        {parametric_dimensions[0]['density'][0]},
                         {parametric_dimensions[0]['fluid'][0]},
-                        moltemp])
+                        'moltemp'])
 
 init_firework = Firework([initialize],
                          name = 'Initialize',
                          spec = {'_category' : f'{host}',
-                                 '_launch_dir': f'{os.getcwd()}/equilib-{parametric_dimensions[0]['pressure'][0]}/moltemp',
+                                 '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/moltemp",
                                  '_dupefinder': DupeFinderExact()},
                          parents = [firework_create_ds])
 
-fw_list.append(firework_init)
+fw_list.append(init_firework)
 
 
 
