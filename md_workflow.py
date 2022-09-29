@@ -147,7 +147,7 @@ if 'walls' in md_system:
 init_firework = Firework([initialize],
                          name = 'Initialize',
                          spec = {'_category' : f'{host}',
-                                 '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/moltemp",
+                                 '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/moltemp",
                                  '_dupefinder': DupeFinderExact()},
                          parents = [firework_create_ds])
 
