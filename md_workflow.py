@@ -134,7 +134,7 @@ if 'bulk' in md_system:
                         args=[{parametric_dimensions[0]['density'][0]},
                         {parametric_dimensions[0]['Np'][0]},
                         {parametric_dimensions[0]['fluid'][0]},
-                        mfluid, tolX, tolY, tolZ])
+                        mFluid, tolX, tolY, tolZ])
 
 if 'walls' in md_system:
     initialize = PyTask(func='init_walls.init_moltemp',
@@ -144,7 +144,7 @@ if 'walls' in md_system:
                         {parametric_dimensions[0]['height'][0]},
                         {parametric_dimensions[0]['density'][0]},
                         {parametric_dimensions[0]['fluid'][0]},
-                        mfluid, tolX, tolY, tolZ])
+                        mFluid, tolX, tolY, tolZ])
 
 init_firework = Firework([initialize],
                          name = 'Initialize',
