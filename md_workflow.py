@@ -34,10 +34,8 @@ else:
     print('Remote server unknown!')
     exit()
 
-
 # Current Working directory
 # prefix = os.getcwd()
-
 # FireWorks config directory
 # local_fws = os.path.expanduser('~/.fireworks')
 
@@ -156,8 +154,9 @@ fw_list.append(init_firework)
 
 
 # Equilibrate with LAMMPS ----------------------------------------------
-equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings \
-        lmp_mpi -in $(pwd)/equilib.LAMMPS -v press '{parametric_dimensions[0]['press'][0]}'")
+equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \
+ --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/equilib.LAMMPS ")
+
 
 equilibrate_firework = Firework(equilibrate,
                                 name = 'Equilibrate',

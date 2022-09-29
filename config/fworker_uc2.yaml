@@ -1,0 +1,7 @@
+name: uc2
+category: 'uc2.scc.kit.edu'
+query: '{}'
+
+# For the FireWorker file on machine 1
+env:
+    command: sbatch

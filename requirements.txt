@@ -1,0 +1,5 @@
+FireWorks==1.9.5
+dtool==3.26.1
+dtool-s3==0.12.0
+mpi4py==3.1.2
+netCDF4==1.5.8

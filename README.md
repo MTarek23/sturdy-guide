@@ -4,11 +4,12 @@ Initialization, Equilibration and Non-equilibrium MD simulations on confined flu
 
 # Required packages:
 * [FireWorks v1.9.5](https://materialsproject.github.io/fireworks/)
-* [Moltemplate v2.20.0](https://moltemplate.org/)
+* [Moltemplate v2.16.1](https://moltemplate.org/)
 * [dtool v3.26.1](https://dtool.readthedocs.io/)
-* [mpi4py](https://mpi4py.readthedocs.io/)
-* [netCDF4](https://unidata.github.io/netcdf4-python/)
-* [LAMMPS](https://www.lammps.org/)
+* [dtool-s3 v0.12.0](https://dtool.readthedocs.io/)
+* [mpi4py v3.1.2](https://mpi4py.readthedocs.io/)
+* [netCDF4 v1.5.8](https://unidata.github.io/netcdf4-python/)
+* [LAMMPS singularity container (based on 29-Sep-2021)](https://www.lammps.org/)
 * Matplotlib
 * Numpy
 * Scipy
