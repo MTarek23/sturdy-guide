@@ -13,8 +13,6 @@ import numpy as np
 import dtool_dataset
 import init_walls, init_bulk
 
-# SSH key file
-
 # remote = input('Remote server: ')
 remote = 'uc2'
 
@@ -81,14 +79,14 @@ fw_list = []
 # Fetch the src files (to be used in multiple simulations with different parameters) -----------
 fetch_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
                             cd md-input/ ; git checkout HEAD pentane/equilib-{md_system}; cd ../;\
-                            mv md-input/pentane/equilib-{md_system} equilib ;\
+                            mv md-input/{parametric_dimensions[0]['fluid'][0]}/equilib-{md_system} equilib ;\
                             rm -rf md-input/ ; mkdir equilib/out")
 
 fetch_firework = Firework([fetch_input],
                                 name = 'Fetch Input',
                                 spec = {'_category': f'{host}',
                                         '_dupefinder': DupeFinderExact(),
-                                        '_launch_dir': f'{os.getcwd()}',#f'{workspace_equilib}',
+                                        '_launch_dir': f'{os.getcwd()}',
                                         'metadata': {'project': project_id,
                                                     'datetime': datetime.datetime.now()}})
 
@@ -162,10 +160,15 @@ equilibrate_firework = Firework(equilibrate,
                                 name = 'Equilibrate',
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/",
-                                        '_dupefinder': DupeFinderExact()},
+                                        '_dupefinder': DupeFinderExact(),
+                                        '_files_out':'fwdata':'data.*'},
                                 parents = [init_firework])
 
 fw_list.append(equilibrate_firework)
+
+
+# Post-process with Python-netCDF4 ----------------------------------------------
+post_equilib =
 
 
 # Select the independent variable
