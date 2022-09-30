@@ -22,6 +22,8 @@ Initialization, Equilibration and Non-equilibrium MD simulations on confined flu
 
 # Workflow:
 
+0. **Fetch Equilibrium Input**
+
 1. **Initialize**: Run the python module _initialize\_walls_ (located in `home/tools/md`) in `equilib/data/moltemp` with the positional arguments. Usage:\
 `initialize_walls.py nUnitsX nUnitsY nUnitsZ h density fluid code` \
 Depending on the choice of code, the initialize_walls script will do either:
@@ -61,5 +63,5 @@ And indeed we want also want to simulate a Couette + Poiseuille flow.
 # Usage (FireWorks):
 
 ```
-md_workflow.py
+md_workflow.py <system-to-initialize>
 ```

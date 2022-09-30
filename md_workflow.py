@@ -81,21 +81,21 @@ proc_params = {
 
 fw_list = []
 
-# Fetch the src files (to be used in multiple simulations with different parameters) -----------
-fetch_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
+# Fetch the equilibrium src files (to be used in multiple simulations with different parameters) -----------
+fetch_eq_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
                             cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/equilib-{md_system}; cd ../;\
                             mv md-input/{parametric_dimensions[0]['fluid'][0]}/equilib-{md_system} equilib ;\
                             rm -rf md-input/ ; mkdir equilib/out")
 
-fetch_firework = Firework([fetch_input],
-                                name = 'Fetch Input',
+fetch_eq_firework = Firework([fetch_eq_input],
+                                name = 'Fetch Equilibration Input',
                                 spec = {'_category': f'{host}',
                                         '_dupefinder': DupeFinderExact(),
                                         '_launch_dir': f'{os.getcwd()}',
                                         'metadata': {'project': project_id,
                                                     'datetime': datetime.datetime.now()}})
 
-fw_list.append(fetch_firework)
+fw_list.append(fetch_eq_firework)
 
 
 # Create the datasets and copy the files from the fetched src --------------
@@ -108,7 +108,7 @@ create_ds_firework = Firework([create_dataset, transfer_from_src],
                          spec = {'_category' : 'uc2.scc.kit.edu',
                                  '_launch_dir': f'{os.getcwd()}',
                                  '_dupefinder': DupeFinderExact()},
-                         parents = [fetch_firework])
+                         parents = [fetch_eq_firework])
 
 fw_list.append(create_ds_firework)
 
@@ -166,7 +166,7 @@ equilibrate_firework = Firework(equilibrate,
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/",
                                         '_dupefinder': DupeFinderExact(),
-                                        '_files_out': {'fwdata':'data.equilib'}},
+                                        '_files_out': {'equilib_data':'data.equilib'}},
                                 parents = [init_firework])
 
 fw_list.append(equilibrate_firework)
@@ -176,7 +176,7 @@ fw_list.append(equilibrate_firework)
 post_equilib = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \
                                            {proc_params['Nchunks']} 1 {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\
                                            {proc_params['stable_start']} {proc_params['stable_end']}\
-                                           {proc_params['pump_start']} {proc_params['pump_end']} \
+                                           {proc_params['pump_start']} {proc_params['pump_end']} ;\
                                             mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \
                                            1 {proc_params['Nchunks']} {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\
                                            {proc_params['stable_start']} {proc_params['stable_end']}\
@@ -186,10 +186,46 @@ post_equilib_firework = Firework(post_equilib,
                                 name = 'Post-process Equilibration',
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/out",
+                                        '_queueadapter': {'walltime':'00:10:00'},
                                         '_dupefinder': DupeFinderExact()},
                                 parents = [equilibrate_firework])
 
 fw_list.append(post_equilib_firework)
+
+
+# Fetch the loading src files (to be used in multiple simulations with different parameters) -----------
+fetch_load_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
+                            cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/load-{md_system}; cd ../;\
+                            mv md-input/{parametric_dimensions[0]['fluid'][0]}/load-{md_system} load ;\
+                            rm -rf md-input/ ; mkdir load/out")
+
+fetch_load_firework = Firework([fetch_load_input],
+                                name = 'Fetch Loading Input',
+                                spec = {'_category': f'{host}',
+                                        '_dupefinder': DupeFinderExact(),
+                                        '_launch_dir': f'{os.getcwd()}',
+                                        'metadata': {'project': project_id,
+                                                    'datetime': datetime.datetime.now()}},
+                                parents = [equilibrate_firework])
+
+fw_list.append(fetch_load_firework)
+
+
+# Load the upper wall with LAMMPS ----------------------------------------------
+load = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \
+ --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/load.LAMMPS ")
+
+
+load_firework = Firework(load,
+                                name = 'Load',
+                                spec = {'_category': f'{host}',
+                                        '_launch_dir': f"{os.getcwd()}/load-{parametric_dimensions[0]['press'][0]}/data/",
+                                        '_dupefinder': DupeFinderExact()},
+                                parents = [fetch_load_firework])
+
+fw_list.append(load_firework)
+
+
 
 # Select the independent variable
 # for k, v in parametric_dimensions[0].items():
@@ -198,38 +234,6 @@ fw_list.append(post_equilib_firework)
 
 # for idx, val in enumerate(indep_var):
 
-    # Post_process ----------------------------------------------
-
-    # parameters = [{'infile': 'equilib',
-    #                'fluid': 'pentane',
-    #                'Nchunks': 144,
-    #                'stable_start': 0.4,
-    #                'stable_end': 0.8,
-    #                'pump_start': 0,
-    #                'pump_end': 0.2,}]
-    #
-    # # USE template
-    # postproc1 = ScriptTask.from_str(f"mpirun --bind-to core --map-by core -report-bindings \
-    #                         proc.py {parameters[0]['infile']}.nc {parameters[0]['Nchunks']} 1 1000 {parameters[0]['fluid']}\
-    #                         {parameters[0]['stable_start']} {parameters[0]['stable_end']} \
-    #                         {parameters[0]['pump_start']} {parameters[0]['pump_end']}")
-    # postproc2 = ScriptTask.from_str(f"mpirun --bind-to core --map-by core -report-bindings \
-    #                         proc.py {parameters[0]['infile']}.nc 1 {parameters[0]['Nchunks']} 1000 {parameters[0]['fluid']}\
-    #                         {parameters[0]['stable_start']} {parameters[0]['stable_end']} \
-    #                         {parameters[0]['pump_start']} {parameters[0]['pump_end']}")
-    # postproc3 = ScriptTask.from_str(f"if [ ! -f {parameters[0]['infile']}_{parameters[0]['Nchunks']}x1_001.nc ]; then \
-    #                       mv {parameters[0]['infile']}_{parameters[0]['Nchunks']}x1_000.nc \
-    #                       {parameters[0]['infile']}_{parameters[0]['Nchunks']}x1.nc \
-    #                       mv {parameters[0]['infile']}_1x{parameters[0]['Nchunks']}_000.nc \
-    #                       {parameters[0]['infile']}_1x{parameters[0]['Nchunks']}.nc \
-    #                     else \
-    #                       cdo mergetime {parameters[0]['infile']}_{parameters[0]['Nchunks']}x1_*.nc \
-    #                       {parameters[0]['infile']}_{parameters[0]['Nchunks']}x1.nc ;\
-    #                       #rm {parameters[0]['infile']}_{parameters[0]['Nchunks']}x1_* \
-    #                       cdo mergetime {parameters[0]['infile']}_1x{parameters[0]['Nchunks']}_*.nc \
-    #                       {parameters[0]['infile']}_1x{parameters[0]['Nchunks']}.nc ;\
-    #                       #rm {parameters[0]['infile']}_1x{parameters[0]['Nchunks']}_* \
-    #                     fi")
     # command = [{'export': 'ALL',
     #             'EXECUTABLE': './$HOME/tools/md/proc.py'}]
 
@@ -284,9 +288,6 @@ wf.to_file('wf.yaml')
 #         queue_adapter.QueueAdapterBase())
 # queue_launcher.launch_rocket_to_queue(lp, FWorker('$HOME/.fireworks/fworker_cms.yaml'), qadapter)
 #
-# #Remote fireworks will be FIZZLED so rerun them
-# subprocess.call(['source $HOME/fireworks/bin/activate; \
-#                  lpad rerun_fws -s FIZZLED'], shell=True)
 #
 # #B. Remote Commands------------------------------------
 # connection.run(f"cd {workspace}/{sys.argv[1]}-{i}/data;\
