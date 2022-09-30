@@ -99,18 +99,18 @@ fw_list.append(fetch_eq_firework)
 
 
 # Create the datasets and copy the files from the fetched src --------------
-create_dataset = PyTask(func='dtool_dataset.create_dataset',
+create_eq_dataset = PyTask(func='dtool_dataset.create_dataset',
                         args=[f"equilib-{parametric_dimensions[0]['press'][0]}"])
 transfer_from_src = ScriptTask.from_str(f"cp -r equilib/* equilib-{parametric_dimensions[0]['press'][0]}/data/ ; rm -r equilib")
 
-create_ds_firework = Firework([create_dataset, transfer_from_src],
-                         name = 'Create Dataset',
+create_eq_ds_firework = Firework([create_eq_dataset, transfer_from_src],
+                         name = 'Create Equilibrium Dataset',
                          spec = {'_category' : 'uc2.scc.kit.edu',
                                  '_launch_dir': f'{os.getcwd()}',
                                  '_dupefinder': DupeFinderExact()},
                          parents = [fetch_eq_firework])
 
-fw_list.append(create_ds_firework)
+fw_list.append(create_eq_ds_firework)
 
 
 # Initialize system with moltemplate ----------------
@@ -151,14 +151,14 @@ init_firework = Firework([initialize, setup],
                          spec = {'_category' : f'{host}',
                                  '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/moltemp",
                                  '_dupefinder': DupeFinderExact()},
-                         parents = [create_ds_firework])
+                         parents = [create_eq_ds_firework])
 
 fw_list.append(init_firework)
 
 
 # Equilibrate with LAMMPS ----------------------------------------------
-equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \
- --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/equilib.LAMMPS ")
+equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \n\
+                    --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/equilib.LAMMPS ")
 
 
 equilibrate_firework = Firework(equilibrate,
@@ -173,13 +173,13 @@ fw_list.append(equilibrate_firework)
 
 
 # Post-process with Python-netCDF4 ----------------------------------------------
-post_equilib = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \
-                                           {proc_params['Nchunks']} 1 {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\
-                                           {proc_params['stable_start']} {proc_params['stable_end']}\
-                                           {proc_params['pump_start']} {proc_params['pump_end']} ;\
-                                            mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \
-                                           1 {proc_params['Nchunks']} {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\
-                                           {proc_params['stable_start']} {proc_params['stable_end']}\
+post_equilib = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \n\
+                                           {proc_params['Nchunks']} 1 {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\n\
+                                           {proc_params['stable_start']} {proc_params['stable_end']}\n\
+                                           {proc_params['pump_start']} {proc_params['pump_end']} ;\n\
+                                            mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \n\
+                                           1 {proc_params['Nchunks']} {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\n\
+                                           {proc_params['stable_start']} {proc_params['stable_end']}\n\
                                            {proc_params['pump_start']} {proc_params['pump_end']}")
 
 post_equilib_firework = Firework(post_equilib,
@@ -188,15 +188,35 @@ post_equilib_firework = Firework(post_equilib,
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/out",
                                         '_queueadapter': {'walltime':'00:10:00'},
                                         '_dupefinder': DupeFinderExact()},
+                                        # '_priority': '2'},
                                 parents = [equilibrate_firework])
 
 fw_list.append(post_equilib_firework)
 
 
+# Create the post equilibrium dataset (this will also copy the output files from the simulation dataset) ------------
+create_post_eq_dataset = PyTask(func='dtool_dataset.create_post',
+                        args=[f"equilib-{parametric_dimensions[0]['press'][0]}"])
+# transfer_from_src = ScriptTask.from_str(f"cp -r equilib/* equilib-{parametric_dimensions[0]['press'][0]}/data/ ; rm -r equilib")
+
+create_post_eq_ds_firework = Firework([create_post_eq_dataset],
+                         name = 'Create Post Equilibrium Dataset',
+                         spec = {'_category' : 'uc2.scc.kit.edu',
+                                 '_launch_dir': f'{os.getcwd()}',
+                                 '_dupefinder': DupeFinderExact()},
+                         parents = [post_equilib])
+
+fw_list.append(create_post_eq_ds_firework)
+
+
+
+
+
+
 # Fetch the loading src files (to be used in multiple simulations with different parameters) -----------
-fetch_load_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
-                            cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/load-{md_system}; cd ../;\
-                            mv md-input/{parametric_dimensions[0]['fluid'][0]}/load-{md_system} load ;\
+fetch_load_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\n\
+                            cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/load-{md_system}; cd ../;\n\
+                            mv md-input/{parametric_dimensions[0]['fluid'][0]}/load-{md_system} load ;\n\
                             rm -rf md-input/ ; mkdir load/out")
 
 fetch_load_firework = Firework([fetch_load_input],
@@ -212,8 +232,8 @@ fw_list.append(fetch_load_firework)
 
 
 # Load the upper wall with LAMMPS ----------------------------------------------
-load = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \
- --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/load.LAMMPS ")
+load = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \n\
+                 --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/load.LAMMPS ")
 
 
 load_firework = Firework(load,
