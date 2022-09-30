@@ -10,6 +10,7 @@ from fireworks.fw_config import QUEUEADAPTER_LOC
 from fireworks.user_objects.dupefinders.dupefinder_exact import DupeFinderExact
 import os, glob, sys, datetime, subprocess, itertools
 import numpy as np
+
 import dtool_dataset
 import init_walls, init_bulk
 
@@ -39,7 +40,6 @@ else:
 
 # set up the LaunchPad and reset it
 lp = LaunchPad.auto_load()
-
 qadapter = CommonAdapter.from_file(QUEUEADAPTER_LOC)
 
 # FilePad behaves analogous to LaunchPad
@@ -49,12 +49,12 @@ project_id = 'EOS'
 
 md_system = sys.argv[1]
 
-# Initialize ----------------------------------------
+# Define the input parameters ----------------------------------------
+# --------------------------------------------------------------------
 
-parametric_dimension_labels = ['nUnitsX', 'nUnitsY', 'density']
-
-parametric_dimensions = [ {
-    'press':               [2467],         #atm = 250 MPa
+# For the simulations ----------
+parametric_dimensions = [{
+    'press':               [2467],
     'temp':                [326],
     'nUnitsX':             [72],
     'nUnitsY':             [10],
@@ -64,21 +64,26 @@ parametric_dimensions = [ {
     'Np'     :             [2880],
     'fluid'  :             ['pentane'],
     'code'   :             ['moltemp']
-    }
-]
+    }]
 
-parameter_sets = list(
-    itertools.chain (*[
-            itertools.product(*list(
-                    p.values())) for p in parametric_dimensions ]) )
+# For the post-processing ----------
+proc_params = {
+    'Nchunks':       144,
+    'slice_size':    1000,
+    'stable_start':  0.4,
+    'stable_end':    0.8,
+    'pump_start':    0.0,
+    'pump_end':      0.2}
 
-parameter_dict_sets = [ dict(zip(parametric_dimension_labels, s)) for s in parameter_sets ]
+
+# Define the fireworks and the firetasks within ----------------------
+# --------------------------------------------------------------------
 
 fw_list = []
 
 # Fetch the src files (to be used in multiple simulations with different parameters) -----------
 fetch_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
-                            cd md-input/ ; git checkout HEAD pentane/equilib-{md_system}; cd ../;\
+                            cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/equilib-{md_system}; cd ../;\
                             mv md-input/{parametric_dimensions[0]['fluid'][0]}/equilib-{md_system} equilib ;\
                             rm -rf md-input/ ; mkdir equilib/out")
 
@@ -161,15 +166,30 @@ equilibrate_firework = Firework(equilibrate,
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/",
                                         '_dupefinder': DupeFinderExact(),
-                                        '_files_out':'fwdata':'data.*'},
+                                        '_files_out': {'fwdata':'data.equilib'}},
                                 parents = [init_firework])
 
 fw_list.append(equilibrate_firework)
 
 
 # Post-process with Python-netCDF4 ----------------------------------------------
-post_equilib =
+post_equilib = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \
+                                           {proc_params['Nchunks']} 1 {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\
+                                           {proc_params['stable_start']} {proc_params['stable_end']}\
+                                           {proc_params['pump_start']} {proc_params['pump_end']} \
+                                            mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \
+                                           1 {proc_params['Nchunks']} {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\
+                                           {proc_params['stable_start']} {proc_params['stable_end']}\
+                                           {proc_params['pump_start']} {proc_params['pump_end']}")
 
+post_equilib_firework = Firework(post_equilib,
+                                name = 'Post-process Equilibration',
+                                spec = {'_category': f'{host}',
+                                        '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/out",
+                                        '_dupefinder': DupeFinderExact()},
+                                parents = [equilibrate_firework])
+
+fw_list.append(post_equilib_firework)
 
 # Select the independent variable
 # for k, v in parametric_dimensions[0].items():

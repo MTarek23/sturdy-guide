@@ -1,4 +1,4 @@
-FireWorks==1.9.5
+FireWorks==1.9.7
 dtool==3.26.1
 dtool-s3==0.14.1
 mpi4py==3.1.2
