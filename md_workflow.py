@@ -83,9 +83,9 @@ fw_list = []
 
 # Fetch the equilibrium src files (to be used in multiple simulations with different parameters) -----------
 fetch_eq_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
-                            cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/equilib-{md_system}; cd ../;\
-                            mv md-input/{parametric_dimensions[0]['fluid'][0]}/equilib-{md_system} equilib ;\
-                            rm -rf md-input/ ; mkdir equilib/out")
+    cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/equilib-{md_system}; cd ../;\
+    mv md-input/{parametric_dimensions[0]['fluid'][0]}/equilib-{md_system} equilib ;\
+    rm -rf md-input/ ; mkdir equilib/out")
 
 fetch_eq_firework = Firework([fetch_eq_input],
                                 name = 'Fetch Equilibration Input',
@@ -157,8 +157,8 @@ fw_list.append(init_firework)
 
 
 # Equilibrate with LAMMPS ----------------------------------------------
-equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \n\
-                    --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/equilib.LAMMPS ")
+equilibrate = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \
+    --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/equilib.LAMMPS ")
 
 
 equilibrate_firework = Firework(equilibrate,
@@ -173,14 +173,14 @@ fw_list.append(equilibrate_firework)
 
 
 # Post-process with Python-netCDF4 ----------------------------------------------
-post_equilib = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \n\
-                                           {proc_params['Nchunks']} 1 {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\n\
-                                           {proc_params['stable_start']} {proc_params['stable_end']}\n\
-                                           {proc_params['pump_start']} {proc_params['pump_end']} ;\n\
-                                            mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \n\
-                                           1 {proc_params['Nchunks']} {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\n\
-                                           {proc_params['stable_start']} {proc_params['stable_end']}\n\
-                                           {proc_params['pump_start']} {proc_params['pump_end']}")
+post_equilib = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \
+    {proc_params['Nchunks']} 1 {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\
+    {proc_params['stable_start']} {proc_params['stable_end']}\
+    {proc_params['pump_start']} {proc_params['pump_end']} ;\
+    mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \
+    1 {proc_params['Nchunks']} {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\
+    {proc_params['stable_start']} {proc_params['stable_end']}\
+    {proc_params['pump_start']} {proc_params['pump_end']}")
 
 post_equilib_firework = Firework(post_equilib,
                                 name = 'Post-process Equilibration',
@@ -204,7 +204,7 @@ create_post_eq_ds_firework = Firework([create_post_eq_dataset],
                          spec = {'_category' : 'uc2.scc.kit.edu',
                                  '_launch_dir': f'{os.getcwd()}',
                                  '_dupefinder': DupeFinderExact()},
-                         parents = [post_equilib])
+                         parents = [post_equilib_firework])
 
 fw_list.append(create_post_eq_ds_firework)
 
@@ -214,10 +214,10 @@ fw_list.append(create_post_eq_ds_firework)
 
 
 # Fetch the loading src files (to be used in multiple simulations with different parameters) -----------
-fetch_load_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\n\
-                            cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/load-{md_system}; cd ../;\n\
-                            mv md-input/{parametric_dimensions[0]['fluid'][0]}/load-{md_system} load ;\n\
-                            rm -rf md-input/ ; mkdir load/out")
+fetch_load_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
+    cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/load-{md_system}; cd ../;\
+    mv md-input/{parametric_dimensions[0]['fluid'][0]}/load-{md_system} load ;\
+    rm -rf md-input/ ; mkdir load/out")
 
 fetch_load_firework = Firework([fetch_load_input],
                                 name = 'Fetch Loading Input',
@@ -231,17 +231,19 @@ fetch_load_firework = Firework([fetch_load_input],
 fw_list.append(fetch_load_firework)
 
 
+
+
 # Load the upper wall with LAMMPS ----------------------------------------------
-load = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \n\
-                 --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/load.LAMMPS ")
+load = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \
+    --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/load.LAMMPS ")
 
 
 load_firework = Firework(load,
-                                name = 'Load',
-                                spec = {'_category': f'{host}',
-                                        '_launch_dir': f"{os.getcwd()}/load-{parametric_dimensions[0]['press'][0]}/data/",
-                                        '_dupefinder': DupeFinderExact()},
-                                parents = [fetch_load_firework])
+                            name = 'Load',
+                            spec = {'_category': f'{host}',
+                                    '_launch_dir': f"{os.getcwd()}/load-{parametric_dimensions[0]['press'][0]}/data/",
+                                    '_dupefinder': DupeFinderExact()},
+                            parents = [fetch_load_firework])
 
 fw_list.append(load_firework)
 
