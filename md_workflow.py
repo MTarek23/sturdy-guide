@@ -181,7 +181,11 @@ post_eq = ScriptTask.from_str(post_commands.grid('equilib', proc_params['Nchunks
 
 merge_nc =  ScriptTask.from_str(post_commands.merge('equilib', proc_params['Nchunks']))
 
-post_equilib_firework = Firework([post_eq, merge_nc],
+print_to_flags = ScriptTask.from_str(f"echo '-i equilib -N {proc_params['Nchunks']}\
+    -f {parametric_dimensions[0]['fluid'][0]} -s {proc_params['stable_start']}\
+    -e {proc_params['stable_end']} -p {proc_params['pump_start']} -x {proc_params['pump_end']}' > $(pwd)/flags.txt")
+
+post_equilib_firework = Firework([post_eq, merge_nc, print_to_flags],
                                 name = 'Post-process Equilibration',
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/out",
@@ -222,7 +226,7 @@ create_load_dataset = PyTask(func='dtool_dataset.create_derived',
 
 transfer_from_src = ScriptTask.from_str(f"cp -r load/* load-{parametric_dimensions[0]['press'][0]}/data/ ; rm -r load")
 
-fetch_load_firework = Firework([fetch_load_input,copy_eq_data],
+fetch_load_firework = Firework([fetch_load_input, copy_eq_data, create_load_dataset, transfer_from_src],
                                 name = 'Fetch Loading Input',
                                 spec = {'_category': f'{host}',
                                         '_dupefinder': DupeFinderExact(),
@@ -257,7 +261,11 @@ post_load = ScriptTask.from_str(post_commands.grid('load', proc_params['Nchunks'
 
 merge_nc =  ScriptTask.from_str(post_commands.merge('load', proc_params['Nchunks']))
 
-post_load_firework = Firework([post_load, merge_nc],
+print_to_flags = ScriptTask.from_str(f"echo '-i equilib -N {proc_params['Nchunks']}\
+    -f {parametric_dimensions[0]['fluid'][0]} -s {proc_params['stable_start']}\
+    -e {proc_params['stable_end']} -p {proc_params['pump_start']} -x {proc_params['pump_end']}' > $(pwd)/flags.txt")
+
+post_load_firework = Firework([post_load, merge_nc, print_to_flags],
                                 name = 'Post-process Loading',
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/load-{parametric_dimensions[0]['press'][0]}/data/out",
@@ -267,6 +275,11 @@ post_load_firework = Firework([post_load, merge_nc],
                                 parents = [load_firework])
 
 fw_list.append(post_load_firework)
+
+
+
+
+
 
 
 # Launch the Workflow ---------------------------------------
