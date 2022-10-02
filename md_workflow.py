@@ -182,7 +182,7 @@ post_equilib = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -
     {proc_params['stable_start']} {proc_params['stable_end']}\
     {proc_params['pump_start']} {proc_params['pump_end']}")
 
-post_equilib_firework = Firework(post_equilib,
+post_equilicd b_firework = Firework(post_equilib,
                                 name = 'Post-process Equilibration',
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/out",
@@ -226,7 +226,7 @@ fetch_load_firework = Firework([fetch_load_input],
                                         '_launch_dir': f'{os.getcwd()}',
                                         'metadata': {'project': project_id,
                                                     'datetime': datetime.datetime.now()}},
-                                parents = [equilibrate_firework])
+                                parents = [create_post_eq_ds_firework])
 
 fw_list.append(fetch_load_firework)
 

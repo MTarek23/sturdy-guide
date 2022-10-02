@@ -38,7 +38,7 @@ def create_post(dataset_name, freeze=None, copy=None):
     yaml.explicit_start = True
     yaml.indent(mapping=4, sequence=4, offset=2)
 
-    sim_uri = os.getcwd().joinpath(dataset_name)
+    sim_uri = os.path.join(os.getcwd(),dataset_name)
     sim_out_uri = os.path.join(sim_uri,'data','out')
 
     # Post-proc dataset path
@@ -48,7 +48,7 @@ def create_post(dataset_name, freeze=None, copy=None):
     # Post-proc dataset readme template
     post_template = os.path.join(post_uri, 'README.yml')
 
-    read_from = os.path.join(os.getcwd().joinpath(dataset_name), 'README.yml')
+    read_from = os.path.join(os.getcwd(), dataset_name, 'README.yml')
     readme_template = _get_readme_template(read_from)
     metadata = yaml.load(readme_template)
     # Proto Dataset
@@ -108,7 +108,7 @@ def create_derived(dataset_name, derived_name):
 
     metadata = self.update_readme(**kwargs)
 
-    read_from = os.path.join(os.getcwd().joinpath(dataset_name), 'README.yml')
+    read_from = os.path.join(os.getcwd(), dataset_name, 'README.yml')
     readme_template = _get_readme_template(read_from)
     metadata = yaml.load(readme_template)
     # Proto Dataset
