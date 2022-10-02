@@ -2,6 +2,7 @@ import os
 from ruamel.yaml import YAML
 import dtoolcore
 from dtool_create.dataset import _get_readme_template
+from pathlib import Path
 
 def create_dataset(dataset_name):
     """
@@ -42,9 +43,9 @@ def create_post(dataset_name, freeze=None, copy=None):
     sim_out_uri = os.path.join(sim_uri,'data','out')
 
     # Post-proc dataset path
-    post_uri =  os.path.join(sim_uri,'-post')
+    post_uri =  str(sim_uri) + '-post'
     # Post-proc dataset name
-    post_name = dataset_name +'-post'
+    post_name = dataset_name + '-post'
     # Post-proc dataset readme template
     post_template = os.path.join(post_uri, 'README.yml')
 
