@@ -175,13 +175,13 @@ fw_list.append(equilibrate_firework)
 
 # Post-process with Python-netCDF4 ----------------------------------------------
 
-post_eq = ScriptTask.from_str(post_commands.grid('equilib', proc_params['Nchunks'], proc_params['slice_size']
+post_eq = ScriptTask.from_str(post_commands.grid('equilib', proc_params['Nchunks'], proc_params['slice_size'],
                         parametric_dimensions[0]['fluid'][0], proc_params['stable_start'],
                         proc_params['stable_end'], proc_params['pump_start'], proc_params['pump_end']))
 
 merge_nc =  ScriptTask.from_str(post_commands.merge('equilib', proc_params['Nchunks']))
 
-post_equilib_firework = Firework([post_eq, merge_nc]
+post_equilib_firework = Firework([post_eq, merge_nc],
                                 name = 'Post-process Equilibration',
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/out",
@@ -214,8 +214,8 @@ fetch_load_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md
     mv md-input/{parametric_dimensions[0]['fluid'][0]}/load-{md_system} load ;\
     rm -rf md-input/ ; mkdir load/out")
 
-copy_eq_data = FileTransferTask({'files': [{'src': f'equilib-{parametric_dimensions[0]['press'][0]}/data/out/data.equilib',
-                                            'dest': f'load/blocks'}, 'mode': 'copy'})
+copy_eq_data = FileTransferTask({'files': [{'src': f"equilib-{parametric_dimensions[0]['press'][0]}/data/out/data.equilib",
+                                            'dest': 'load/blocks'}], 'mode': 'copy'})
 
 create_load_dataset = PyTask(func='dtool_dataset.create_derived',
                         args=[f"equilib-{parametric_dimensions[0]['press'][0]}",f"load-{parametric_dimensions[0]['press'][0]}"])
@@ -251,13 +251,13 @@ fw_list.append(load_firework)
 
 # Post-process with Python-netCDF4 ----------------------------------------------
 
-post_load = ScriptTask.from_str(post_commands.grid('load', proc_params['Nchunks'], proc_params['slice_size']
+post_load = ScriptTask.from_str(post_commands.grid('load', proc_params['Nchunks'], proc_params['slice_size'],
                         parametric_dimensions[0]['fluid'][0], proc_params['stable_start'],
                         proc_params['stable_end'], proc_params['pump_start'], proc_params['pump_end']))
 
 merge_nc =  ScriptTask.from_str(post_commands.merge('load', proc_params['Nchunks']))
 
-post_load_firework = Firework([post_load, merge_nc]
+post_load_firework = Firework([post_load, merge_nc],
                                 name = 'Post-process Loading',
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/load-{parametric_dimensions[0]['press'][0]}/data/out",
