@@ -41,7 +41,7 @@ def create_post(dataset_name, freeze=None, copy=None):
 
     sim_uri = os.path.join(os.getcwd(),dataset_name)
     sim_out_uri = os.path.join(sim_uri,'data','out')
-
+    
     # Post-proc dataset path
     post_uri =  str(sim_uri) + '-post'
     # Post-proc dataset name

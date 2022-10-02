@@ -13,6 +13,7 @@ import numpy as np
 
 import dtool_dataset
 import init_walls, init_bulk
+import post_commands
 
 # remote = input('Remote server: ')
 remote = 'uc2'
@@ -173,16 +174,14 @@ fw_list.append(equilibrate_firework)
 
 
 # Post-process with Python-netCDF4 ----------------------------------------------
-post_equilib = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \
-    {proc_params['Nchunks']} 1 {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\
-    {proc_params['stable_start']} {proc_params['stable_end']}\
-    {proc_params['pump_start']} {proc_params['pump_end']} ;\
-    mpirun --bind-to core --map-by core -report-bindings proc_nc.py equilib.nc \
-    1 {proc_params['Nchunks']} {proc_params['slice_size']} {parametric_dimensions[0]['fluid'][0]}\
-    {proc_params['stable_start']} {proc_params['stable_end']}\
-    {proc_params['pump_start']} {proc_params['pump_end']}")
 
-post_equilicd b_firework = Firework(post_equilib,
+post_eq = ScriptTask.from_str(post_commands.grid('equilib', proc_params['Nchunks'], proc_params['slice_size']
+                        parametric_dimensions[0]['fluid'][0], proc_params['stable_start'],
+                        proc_params['stable_end'], proc_params['pump_start'], proc_params['pump_end']))
+
+merge_nc =  ScriptTask.from_str(post_commands.merge('equilib', proc_params['Nchunks']))
+
+post_equilib_firework = Firework([post_eq, merge_nc]
                                 name = 'Post-process Equilibration',
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/out",
@@ -209,17 +208,21 @@ create_post_eq_ds_firework = Firework([create_post_eq_dataset],
 fw_list.append(create_post_eq_ds_firework)
 
 
-
-
-
-
 # Fetch the loading src files (to be used in multiple simulations with different parameters) -----------
 fetch_load_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
     cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/load-{md_system}; cd ../;\
     mv md-input/{parametric_dimensions[0]['fluid'][0]}/load-{md_system} load ;\
     rm -rf md-input/ ; mkdir load/out")
 
-fetch_load_firework = Firework([fetch_load_input],
+copy_eq_data = FileTransferTask({'files': [{'src': f'equilib-{parametric_dimensions[0]['press'][0]}/data/out/data.equilib',
+                                            'dest': f'load/blocks'}, 'mode': 'copy'})
+
+create_load_dataset = PyTask(func='dtool_dataset.create_derived',
+                        args=[f"equilib-{parametric_dimensions[0]['press'][0]}",f"load-{parametric_dimensions[0]['press'][0]}"])
+
+transfer_from_src = ScriptTask.from_str(f"cp -r load/* load-{parametric_dimensions[0]['press'][0]}/data/ ; rm -r load")
+
+fetch_load_firework = Firework([fetch_load_input,copy_eq_data],
                                 name = 'Fetch Loading Input',
                                 spec = {'_category': f'{host}',
                                         '_dupefinder': DupeFinderExact(),
@@ -231,12 +234,10 @@ fetch_load_firework = Firework([fetch_load_input],
 fw_list.append(fetch_load_firework)
 
 
-
-
 # Load the upper wall with LAMMPS ----------------------------------------------
+
 load = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \
     --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/load.LAMMPS ")
-
 
 load_firework = Firework(load,
                             name = 'Load',
@@ -248,25 +249,24 @@ load_firework = Firework(load,
 fw_list.append(load_firework)
 
 
+# Post-process with Python-netCDF4 ----------------------------------------------
 
-# Select the independent variable
-# for k, v in parametric_dimensions[0].items():
-#     if len(v) > 1: indep_var = v
+post_load = ScriptTask.from_str(post_commands.grid('load', proc_params['Nchunks'], proc_params['slice_size']
+                        parametric_dimensions[0]['fluid'][0], proc_params['stable_start'],
+                        proc_params['stable_end'], proc_params['pump_start'], proc_params['pump_end']))
 
+merge_nc =  ScriptTask.from_str(post_commands.merge('load', proc_params['Nchunks']))
 
-# for idx, val in enumerate(indep_var):
+post_load_firework = Firework([post_load, merge_nc]
+                                name = 'Post-process Loading',
+                                spec = {'_category': f'{host}',
+                                        '_launch_dir': f"{os.getcwd()}/load-{parametric_dimensions[0]['press'][0]}/data/out",
+                                        '_queueadapter': {'walltime':'00:30:00'},
+                                        '_dupefinder': DupeFinderExact()},
+                                        # '_priority': '2'},
+                                parents = [load_firework])
 
-    # command = [{'export': 'ALL',
-    #             'EXECUTABLE': './$HOME/tools/md/proc.py'}]
-
-    # firework_postproc = Firework([postproc1,postproc2,postproc3],
-    #                              name = 'Post-process',
-    #                              spec = {'_category': f'{host}',
-    #                                      '_dupefinder': DupeFinderExact()},
-    #                                     #'_queueadapter': command},
-    #                              parents = [firework_equilibrate])
-    #
-    # fw_list.append(firework_postproc)
+fw_list.append(post_load_firework)
 
 
 # Launch the Workflow ---------------------------------------
@@ -286,6 +286,14 @@ lp.add_wf(wf)
 
 #Write out the Workflow to a flat file
 wf.to_file('wf.yaml')
+
+
+
+# Select the independent variable
+# for k, v in parametric_dimensions[0].items():
+#     if len(v) > 1: indep_var = v
+
+# for idx, val in enumerate(indep_var):
 
 
 # rocket_launcher.rapidfire(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
