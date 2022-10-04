@@ -41,7 +41,7 @@ def create_post(dataset_name, freeze=None, copy=None):
 
     sim_uri = os.path.join(os.getcwd(),dataset_name)
     sim_out_uri = os.path.join(sim_uri,'data','out')
-    
+
     # Post-proc dataset path
     post_uri =  str(sim_uri) + '-post'
     # Post-proc dataset name
@@ -106,8 +106,6 @@ def create_derived(dataset_name, derived_name):
     # # derived dataset readme template
     derived_template = os.path.join(derived_uri, 'README.yml')
     # template = os.path.join(self.sim_uri, 'README.yml')
-
-    metadata = self.update_readme(**kwargs)
 
     read_from = os.path.join(os.getcwd(), dataset_name, 'README.yml')
     readme_template = _get_readme_template(read_from)
