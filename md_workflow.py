@@ -1,16 +1,9 @@
 #!/usr/bin/env python
 
 from fireworks import Firework, FWorker, LaunchPad, ScriptTask, TemplateWriterTask, FileTransferTask, PyTask, Workflow
-from fireworks.utilities.filepad import FilePad
-import fireworks.core.rocket_launcher as rocket_launcher
-import fireworks.queue.queue_launcher as queue_launcher # launch_rocket_to_queue, rapidfire
-import fireworks.queue.queue_adapter as queue_adapter
-from fireworks.user_objects.queue_adapters.common_adapter import CommonAdapter
-from fireworks.fw_config import QUEUEADAPTER_LOC
 from fireworks.user_objects.dupefinders.dupefinder_exact import DupeFinderExact
 import os, glob, sys, datetime, subprocess, itertools
 import numpy as np
-
 import dtool_dataset
 import init_walls, init_bulk
 import post_commands
@@ -34,17 +27,9 @@ else:
     print('Remote server unknown!')
     exit()
 
-# Current Working directory
-# prefix = os.getcwd()
-# FireWorks config directory
-# local_fws = os.path.expanduser('~/.fireworks')
 
-# set up the LaunchPad and reset it
+# Set up the LaunchPad and reset it
 lp = LaunchPad.auto_load()
-qadapter = CommonAdapter.from_file(QUEUEADAPTER_LOC)
-
-# FilePad behaves analogous to LaunchPad
-# fp = FilePad.auto_load()
 
 project_id = 'EOS'
 
@@ -61,10 +46,11 @@ parametric_dimensions = [{
     'nUnitsY':             [10],
     'nUnitsZ':             [1],
     'density':             [0.7],
-    'height':              [40],
+    'height' :             [40],
     'Np'     :             [2880],
     'fluid'  :             ['pentane'],
-    'code'   :             ['moltemp']
+    'code'   :             ['moltemp'],
+    'deltaP' :             [50]
     }]
 
 # For the post-processing ----------
@@ -88,7 +74,13 @@ fetch_eq_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-i
     mv md-input/{parametric_dimensions[0]['fluid'][0]}/equilib-{md_system} equilib ;\
     rm -rf md-input/ ; mkdir equilib/out")
 
-fetch_eq_firework = Firework([fetch_eq_input],
+# Create the datasets and copy the files from the fetched src --------------
+create_eq_dataset = PyTask(func='dtool_dataset.create_dataset',
+                        args=[f"equilib-{parametric_dimensions[0]['press'][0]}"])
+transfer_from_src = ScriptTask.from_str(f"cp -r equilib/* equilib-{parametric_dimensions[0]['press'][0]}/data/ ; rm -r equilib")
+
+
+fetch_eq_firework = Firework([fetch_eq_input, create_eq_dataset, transfer_from_src],
                                 name = 'Fetch Equilibration Input',
                                 spec = {'_category': f'{host}',
                                         '_dupefinder': DupeFinderExact(),
@@ -97,21 +89,6 @@ fetch_eq_firework = Firework([fetch_eq_input],
                                                     'datetime': datetime.datetime.now()}})
 
 fw_list.append(fetch_eq_firework)
-
-
-# Create the datasets and copy the files from the fetched src --------------
-create_eq_dataset = PyTask(func='dtool_dataset.create_dataset',
-                        args=[f"equilib-{parametric_dimensions[0]['press'][0]}"])
-transfer_from_src = ScriptTask.from_str(f"cp -r equilib/* equilib-{parametric_dimensions[0]['press'][0]}/data/ ; rm -r equilib")
-
-create_eq_ds_firework = Firework([create_eq_dataset, transfer_from_src],
-                         name = 'Create Equilibrium Dataset',
-                         spec = {'_category' : 'uc2.scc.kit.edu',
-                                 '_launch_dir': f'{os.getcwd()}',
-                                 '_dupefinder': DupeFinderExact()},
-                         parents = [fetch_eq_firework])
-
-fw_list.append(create_eq_ds_firework)
 
 
 # Initialize system with moltemplate ----------------
@@ -255,13 +232,13 @@ fw_list.append(load_firework)
 
 # Post-process with Python-netCDF4 ----------------------------------------------
 
-post_load = ScriptTask.from_str(post_commands.grid('load', proc_params['Nchunks'], proc_params['slice_size'],
+post_load = ScriptTask.from_str(post_commands.grid('force', proc_params['Nchunks'], proc_params['slice_size'],
                         parametric_dimensions[0]['fluid'][0], proc_params['stable_start'],
                         proc_params['stable_end'], proc_params['pump_start'], proc_params['pump_end']))
 
-merge_nc =  ScriptTask.from_str(post_commands.merge('load', proc_params['Nchunks']))
+merge_nc =  ScriptTask.from_str(post_commands.merge('force', proc_params['Nchunks']))
 
-print_to_flags = ScriptTask.from_str(f"echo '-i equilib -N {proc_params['Nchunks']}\
+print_to_flags = ScriptTask.from_str(f"echo '-i force -N {proc_params['Nchunks']}\
     -f {parametric_dimensions[0]['fluid'][0]} -s {proc_params['stable_start']}\
     -e {proc_params['stable_end']} -p {proc_params['pump_start']} -x {proc_params['pump_end']}' > $(pwd)/flags.txt")
 
@@ -271,18 +248,107 @@ post_load_firework = Firework([post_load, merge_nc, print_to_flags],
                                         '_launch_dir': f"{os.getcwd()}/load-{parametric_dimensions[0]['press'][0]}/data/out",
                                         '_queueadapter': {'walltime':'00:30:00'},
                                         '_dupefinder': DupeFinderExact()},
-                                        # '_priority': '2'},
                                 parents = [load_firework])
 
 fw_list.append(post_load_firework)
 
 
+# Create the post loading dataset (this will also copy the output files from the simulation dataset) ------------
+create_post_load_dataset = PyTask(func='dtool_dataset.create_post',
+                        args=[f"load-{parametric_dimensions[0]['press'][0]}"])
+
+create_post_load_ds_firework = Firework([create_post_load_dataset],
+                         name = 'Create Post Loading Dataset',
+                         spec = {'_category' : 'uc2.scc.kit.edu',
+                                 '_launch_dir': f'{os.getcwd()}',
+                                 '_dupefinder': DupeFinderExact()},
+                         parents = [post_load_firework])
+
+fw_list.append(create_post_load_ds_firework)
 
 
+# Fetch the NEMD src files (to be used in multiple simulations with different parameters) -----------
+
+deltaP = parametric_dimensions[0]['deltaP'][0]
+
+fetch_nemd_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
+    cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/nemd-{md_system}; cd ../;\
+    mv md-input/{parametric_dimensions[0]['fluid'][0]}/nemd-{md_system} ff-{deltaP}- ;\
+    rm -rf md-input/ ; mkdir ff-{deltaP}/out")
+
+copy_load_data = FileTransferTask({'files': [{'src': f"load-{parametric_dimensions[0]['press'][0]}/data/out/data.force",
+                                            'dest': f'ff-{deltaP}-/blocks'}], 'mode': 'copy'})
+
+create_nemd_dataset = PyTask(func='dtool_dataset.create_derived',
+                        args=[f"load-{parametric_dimensions[0]['press'][0]}",f"ff-{parametric_dimensions[0]['press'][0]}"])
+
+transfer_from_src = ScriptTask.from_str(f"cp -r ff-{deltaP}-/* ff-{deltaP}/data/ ; rm -r ff-{deltaP}-")
+
+fetch_load_firework = Firework([fetch_nemd_input, copy_load_data, create_nemd_dataset, transfer_from_src],
+                                name = 'Fetch Loading Input',
+                                spec = {'_category': f'{host}',
+                                        '_dupefinder': DupeFinderExact(),
+                                        '_launch_dir': f'{os.getcwd()}',
+                                        'metadata': {'project': project_id,
+                                                    'datetime': datetime.datetime.now()}},
+                                parents = [create_post_load_ds_firework])
+
+fw_list.append(fetch_nemd_firework)
 
 
+# NEMD simulation with LAMMPS ----------------------------------------------
 
-# Launch the Workflow ---------------------------------------
+nemd = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \
+    --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/flow.LAMMPS -v ff 1 -v pDiff {deltaP}e6")
+
+nemd_firework = Firework(load,
+                            name = 'NEMD',
+                            spec = {'_category': f'{host}',
+                                    '_launch_dir': f"{os.getcwd()}/ff-{deltaP}/data/",
+                                    '_dupefinder': DupeFinderExact()},
+                            parents = [fetch_nemd_firework])
+
+fw_list.append(nemd_firework)
+
+
+# Post-process with Python-netCDF4 ----------------------------------------------
+post_nemd = ScriptTask.from_str(post_commands.grid('flow', proc_params['Nchunks'], proc_params['slice_size'],
+                        parametric_dimensions[0]['fluid'][0], proc_params['stable_start'],
+                        proc_params['stable_end'], proc_params['pump_start'], proc_params['pump_end']))
+
+merge_nc =  ScriptTask.from_str(post_commands.merge('flow', proc_params['Nchunks']))
+
+print_to_flags = ScriptTask.from_str(f"echo '-i flow -N {proc_params['Nchunks']}\
+    -f {parametric_dimensions[0]['fluid'][0]} -s {proc_params['stable_start']}\
+    -e {proc_params['stable_end']} -p {proc_params['pump_start']} -x {proc_params['pump_end']}' > $(pwd)/flags.txt")
+
+post_nemd_firework = Firework([post_nemd, merge_nc, print_to_flags],
+                                name = 'Post-process Flow',
+                                spec = {'_category': f'{host}',
+                                        '_launch_dir': f"{os.getcwd()}/ff-{deltaP}/data/out",
+                                        '_queueadapter': {'walltime':'00:30:00'},
+                                        '_dupefinder': DupeFinderExact()},
+                                parents = [nemd_firework])
+
+fw_list.append(post_nemd_firework)
+
+
+# Create the post loading dataset (this will also copy the output files from the simulation dataset) ------------
+create_post_nemd_dataset = PyTask(func='dtool_dataset.create_post',
+                        args=[f"ff-{deltaP}"])
+
+create_post_nemd_ds_firework = Firework([create_post_nemd_dataset],
+                         name = 'Create Post NEMD Dataset',
+                         spec = {'_category' : 'uc2.scc.kit.edu',
+                                 '_launch_dir': f'{os.getcwd()}',
+                                 '_dupefinder': DupeFinderExact()},
+                         parents = [post_nemd_firework])
+
+fw_list.append(create_post_nemd_ds_firework)
+
+
+# Write the Workflow to a yaml file ----------------------------------
+# --------------------------------------------------------------------
 
 wf = Workflow(fw_list,
     name = 'test_wf',
@@ -299,52 +365,3 @@ lp.add_wf(wf)
 
 #Write out the Workflow to a flat file
 wf.to_file('wf.yaml')
-
-
-
-# Select the independent variable
-# for k, v in parametric_dimensions[0].items():
-#     if len(v) > 1: indep_var = v
-
-# for idx, val in enumerate(indep_var):
-
-
-# rocket_launcher.rapidfire(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
-# for i in indep_var:
-
-# # Launch the fireworks on the local machine
-# # Fetch Input
-# rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
-#
-# # Create the datasets
-# rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
-#
-# # Initialize the structure and related parameters
-# # rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
-# # Transfer to the cluster
-# rocket_launcher.launch_rocket(lp, FWorker(f'{local_fws}/fworker_cms.yaml'))
-#
-# ## Submit the simulation to the cluster (still not working properly)
-# #A. QueueLauncher-------------------------------------
-#
-# queue_launcher.launch_rocket_to_queue(lp, FWorker('$HOME/.fireworks/fworker_cms.yaml'),
-#         queue_adapter.QueueAdapterBase())
-# queue_launcher.launch_rocket_to_queue(lp, FWorker('$HOME/.fireworks/fworker_cms.yaml'), qadapter)
-#
-#
-# #B. Remote Commands------------------------------------
-# connection.run(f"cd {workspace}/{sys.argv[1]}-{i}/data;\
-#                source $HOME/fireworks/bin/activate ;\
-#                qlaunch singleshot")
-#
-# #Submit the post-processing
-# connection.run(f"cd {workspace}/{sys.argv[1]}-{i}/data/out;\
-#               source $HOME/fireworks/bin/activate ;\
-#               qlaunch -q $HOME/.fireworks/qadapter_uc2_postproc.yaml singleshot")
-#
-# #Queries to the data base are simple dictionaries
-# query = {
-#     'metadata.project': project_id,
-#         }
-#
-# print(fp.filepad.count_documents(query))
