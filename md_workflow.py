@@ -301,7 +301,7 @@ fw_list.append(fetch_nemd_firework)
 nemd = ScriptTask.from_str(f"pwd ; mpirun --bind-to core --map-by core singularity run --bind {workspace} \
     --bind /scratch --bind /tmp --pwd=$PWD $HOME/programs/lammps.sif -i $(pwd)/flow.LAMMPS -v ff 1 -v pDiff {deltaP}e6")
 
-nemd_firework = Firework(load,
+nemd_firework = Firework(nemd,
                             name = 'NEMD',
                             spec = {'_category': f'{host}',
                                     '_launch_dir': f"{os.getcwd()}/ff-{deltaP}/data/",
