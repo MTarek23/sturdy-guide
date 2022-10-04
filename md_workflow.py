@@ -274,18 +274,18 @@ deltaP = parametric_dimensions[0]['deltaP'][0]
 fetch_nemd_input = ScriptTask.from_str(f" git clone -n git@github.com:mtelewa/md-input.git --depth 1 ;\
     cd md-input/ ; git checkout HEAD {parametric_dimensions[0]['fluid'][0]}/nemd-{md_system}; cd ../;\
     mv md-input/{parametric_dimensions[0]['fluid'][0]}/nemd-{md_system} ff-{deltaP}- ;\
-    rm -rf md-input/ ; mkdir ff-{deltaP}/out")
+    rm -rf md-input/ ; mkdir ff-{deltaP}-/out")
 
 copy_load_data = FileTransferTask({'files': [{'src': f"load-{parametric_dimensions[0]['press'][0]}/data/out/data.force",
                                             'dest': f'ff-{deltaP}-/blocks'}], 'mode': 'copy'})
 
 create_nemd_dataset = PyTask(func='dtool_dataset.create_derived',
-                        args=[f"load-{parametric_dimensions[0]['press'][0]}",f"ff-{parametric_dimensions[0]['press'][0]}"])
+                        args=[f"load-{parametric_dimensions[0]['press'][0]}",f"ff-{deltaP}"])
 
 transfer_from_src = ScriptTask.from_str(f"cp -r ff-{deltaP}-/* ff-{deltaP}/data/ ; rm -r ff-{deltaP}-")
 
 fetch_nemd_firework = Firework([fetch_nemd_input, copy_load_data, create_nemd_dataset, transfer_from_src],
-                                name = 'Fetch Loading Input',
+                                name = 'Fetch NEMD Input',
                                 spec = {'_category': f'{host}',
                                         '_dupefinder': DupeFinderExact(),
                                         '_launch_dir': f'{os.getcwd()}',
@@ -323,7 +323,7 @@ print_to_flags = ScriptTask.from_str(f"echo '-i flow -N {proc_params['Nchunks']}
     -e {proc_params['stable_end']} -p {proc_params['pump_start']} -x {proc_params['pump_end']}' > $(pwd)/flags.txt")
 
 post_nemd_firework = Firework([post_nemd, merge_nc, print_to_flags],
-                                name = 'Post-process Flow',
+                                name = 'Post-process NEMD',
                                 spec = {'_category': f'{host}',
                                         '_launch_dir': f"{os.getcwd()}/ff-{deltaP}/data/out",
                                         '_queueadapter': {'walltime':'00:30:00'},
