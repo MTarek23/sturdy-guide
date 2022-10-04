@@ -129,7 +129,7 @@ init_firework = Firework([initialize, setup],
                          spec = {'_category' : f'{host}',
                                  '_launch_dir': f"{os.getcwd()}/equilib-{parametric_dimensions[0]['press'][0]}/data/moltemp",
                                  '_dupefinder': DupeFinderExact()},
-                         parents = [create_eq_ds_firework])
+                         parents = [fetch_eq_firework])
 
 fw_list.append(init_firework)
 
@@ -284,7 +284,7 @@ create_nemd_dataset = PyTask(func='dtool_dataset.create_derived',
 
 transfer_from_src = ScriptTask.from_str(f"cp -r ff-{deltaP}-/* ff-{deltaP}/data/ ; rm -r ff-{deltaP}-")
 
-fetch_load_firework = Firework([fetch_nemd_input, copy_load_data, create_nemd_dataset, transfer_from_src],
+fetch_nemd_firework = Firework([fetch_nemd_input, copy_load_data, create_nemd_dataset, transfer_from_src],
                                 name = 'Fetch Loading Input',
                                 spec = {'_category': f'{host}',
                                         '_dupefinder': DupeFinderExact(),
