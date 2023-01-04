@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import fireworks
 from fireworks import Firework, FWorker, LaunchPad, ScriptTask, TemplateWriterTask, FileTransferTask, PyTask, Workflow
 from fireworks.user_objects.dupefinders.dupefinder_exact import DupeFinderExact
 import os, glob, sys, datetime, subprocess, itertools
@@ -365,3 +365,9 @@ lp.add_wf(wf)
 
 #Write out the Workflow to a flat file
 wf.to_file('wf.yaml')
+
+
+
+# fireworks.utilities.visualize.plot_wf(wf, depth_factor=1.0, breadth_factor=2.0,
+#                      labels_on=True, numerical_label=False, text_loc_factor=1.0, save_as=None, style='rD--',
+#                      markersize=10, markerfacecolor='blue', fontsize=12)
