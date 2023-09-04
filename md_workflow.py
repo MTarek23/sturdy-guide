@@ -2,6 +2,7 @@
 import fireworks
 from fireworks import Firework, FWorker, LaunchPad, ScriptTask, TemplateWriterTask, FileTransferTask, PyTask, Workflow
 from fireworks.user_objects.dupefinders.dupefinder_exact import DupeFinderExact
+import fireworks.utilities.visualize as vis
 import os, glob, sys, datetime, subprocess, itertools
 import numpy as np
 import dtool_dataset
@@ -363,11 +364,13 @@ wf = Workflow(fw_list,
 #Store the workflow to the db
 lp.add_wf(wf)
 
-#Write out the Workflow to a flat file
+# Write out the Workflow to a flat file
 wf.to_file('wf.yaml')
 
-
-
-# fireworks.utilities.visualize.plot_wf(wf, depth_factor=1.0, breadth_factor=2.0,
-#                      labels_on=True, numerical_label=False, text_loc_factor=1.0, save_as=None, style='rD--',
+# Visualize workflow
+# vis.plot_wf(wf, depth_factor=1.0, breadth_factor=2.0,
+#                      labels_on=True, numerical_label=False, text_loc_factor=1.0, save_as='a.png', style='rD--',
 #                      markersize=10, markerfacecolor='blue', fontsize=12)
+
+digraph = vis.wf_to_graph(wf, wf_show_tasks=True)
+digraph.render(format='svg', directory=os.getcwd())
